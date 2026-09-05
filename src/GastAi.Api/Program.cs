@@ -39,3 +39,6 @@ app.MapControllers();
 app.MapFallbackToFile("index.html");
 
 app.Run();
+
+/// <summary>Exposto para o WebApplicationFactory&lt;Program&gt; usado nos testes de integração.</summary>
+public partial class Program;
