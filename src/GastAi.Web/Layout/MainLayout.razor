@@ -1,0 +1,26 @@
+@inherits LayoutComponentBase
+
+<div class="app-shell">
+    <header class="app-header">
+        <span class="app-header__title">GastAi</span>
+    </header>
+
+    <main class="app-content">
+        @Body
+    </main>
+
+    <nav class="bottom-nav">
+        <NavLink class="bottom-nav__item" href="" Match="NavLinkMatch.All">
+            <span class="bottom-nav__icon">＋</span>
+            <span>Lançar</span>
+        </NavLink>
+        <NavLink class="bottom-nav__item" href="relatorio">
+            <span class="bottom-nav__icon">▤</span>
+            <span>Relatório</span>
+        </NavLink>
+        <NavLink class="bottom-nav__item" href="categorias">
+            <span class="bottom-nav__icon">◎</span>
+            <span>Categorias</span>
+        </NavLink>
+    </nav>
+</div>

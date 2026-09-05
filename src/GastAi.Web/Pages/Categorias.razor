@@ -1,0 +1,107 @@
+@page "/categorias"
+@inject ApiClient Api
+
+<PageTitle>Categorias</PageTitle>
+
+<div class="tabs">
+    <button class="tab-button @(tipo == TipoLancamento.Gasto ? "active" : "")" @onclick="() => MudarTipoAsync(TipoLancamento.Gasto)">
+        Gasto
+    </button>
+    <button class="tab-button @(tipo == TipoLancamento.Receita ? "active" : "")" @onclick="() => MudarTipoAsync(TipoLancamento.Receita)">
+        Receita
+    </button>
+</div>
+
+@if (mensagemErro is not null)
+{
+    <p class="alert-error">@mensagemErro</p>
+}
+
+<div class="card">
+    @foreach (var categoria in categorias)
+    {
+        <div class="lancamento-row">
+            <span>@categoria.Nome @(categoria.PadraoDoSistema ? "(padrão)" : "")</span>
+            @if (!categoria.PadraoDoSistema)
+            {
+                <button class="btn-danger" title="Desativar" @onclick="() => DesativarAsync(categoria.Id)">✕</button>
+            }
+        </div>
+    }
+    @if (categorias.Count == 0)
+    {
+        <p>Nenhuma categoria.</p>
+    }
+</div>
+
+<div class="card">
+    <strong>Nova categoria</strong>
+    <div class="field">
+        <label for="nomeCategoria">Nome</label>
+        <input id="nomeCategoria" type="text" @bind="novoNome" placeholder="Ex: Pets" />
+    </div>
+    <button class="btn-primary" disabled="@salvando" @onclick="CriarAsync">
+        @(salvando ? "Salvando..." : "Adicionar categoria")
+    </button>
+</div>
+
+@code {
+    private TipoLancamento tipo = TipoLancamento.Gasto;
+    private List<CategoriaDto> categorias = [];
+    private string novoNome = string.Empty;
+    private bool salvando;
+    private string? mensagemErro;
+
+    protected override Task OnInitializedAsync() => CarregarAsync();
+
+    private async Task MudarTipoAsync(TipoLancamento novoTipo)
+    {
+        tipo = novoTipo;
+        await CarregarAsync();
+    }
+
+    private async Task CarregarAsync()
+    {
+        categorias = await Api.GetCategoriasAsync(tipo);
+    }
+
+    private async Task CriarAsync()
+    {
+        mensagemErro = null;
+
+        if (string.IsNullOrWhiteSpace(novoNome))
+        {
+            mensagemErro = "Informe um nome para a categoria.";
+            return;
+        }
+
+        salvando = true;
+        try
+        {
+            await Api.CriarCategoriaAsync(new CriarCategoriaRequest(novoNome, tipo, null));
+            novoNome = string.Empty;
+            await CarregarAsync();
+        }
+        catch (ApiException ex)
+        {
+            mensagemErro = ex.Message;
+        }
+        finally
+        {
+            salvando = false;
+        }
+    }
+
+    private async Task DesativarAsync(int id)
+    {
+        try
+        {
+            await Api.DesativarCategoriaAsync(id);
+            await CarregarAsync();
+        }
+        catch (ApiException ex)
+        {
+            mensagemErro = ex.Message;
+        }
+    }
+}

@@ -1,0 +1,142 @@
+@page "/"
+@inject ApiClient Api
+
+<PageTitle>Lançar</PageTitle>
+
+<div class="tabs">
+    <button class="tab-button @(tipo == TipoLancamento.Gasto ? "active" : "")" @onclick="() => MudarTipoAsync(TipoLancamento.Gasto)">
+        Gasto
+    </button>
+    <button class="tab-button @(tipo == TipoLancamento.Receita ? "active" : "")" @onclick="() => MudarTipoAsync(TipoLancamento.Receita)">
+        Receita
+    </button>
+</div>
+
+@if (mensagemErro is not null)
+{
+    <p class="alert-error">@mensagemErro</p>
+}
+@if (mensagemSucesso is not null)
+{
+    <p class="alert-warning">@mensagemSucesso</p>
+}
+
+<EditForm Model="this" OnValidSubmit="SalvarAsync">
+    <div class="field">
+        <label for="valor">Valor (R$)</label>
+        <input id="valor" type="number" min="0.01" step="0.01" inputmode="decimal" @bind="valor" @bind:event="oninput" placeholder="0,00" />
+    </div>
+
+    <div class="field">
+        <label for="categoria">Categoria</label>
+        <select id="categoria" @bind="categoriaId">
+            <option value="">Selecione...</option>
+            @foreach (var categoria in categorias)
+            {
+                <option value="@categoria.Id">@categoria.Nome</option>
+            }
+        </select>
+    </div>
+
+    @if (tipo == TipoLancamento.Gasto)
+    {
+        <div class="field">
+            <label for="formaPagamento">Forma de pagamento</label>
+            <select id="formaPagamento" @bind="formaPagamento">
+                @foreach (var forma in Enum.GetValues<FormaPagamento>())
+                {
+                    <option value="@forma">@forma</option>
+                }
+            </select>
+        </div>
+    }
+
+    <div class="field">
+        <label for="data">Data</label>
+        <input id="data" type="date" @bind="data" />
+    </div>
+
+    <div class="field">
+        <label for="descricao">Descrição</label>
+        <input id="descricao" type="text" @bind="descricao" placeholder="Opcional" />
+    </div>
+
+    <button type="submit" class="btn-primary" disabled="@salvando">
+        @(salvando ? "Salvando..." : tipo == TipoLancamento.Gasto ? "Lançar gasto" : "Lançar receita")
+    </button>
+</EditForm>
+
+@code {
+    private TipoLancamento tipo = TipoLancamento.Gasto;
+    private List<CategoriaDto> categorias = [];
+    private decimal? valor;
+    private DateOnly data = DateOnly.FromDateTime(DateTime.Now);
+    private string descricao = string.Empty;
+    private int? categoriaId;
+    private FormaPagamento formaPagamento = FormaPagamento.Pix;
+    private string? mensagemErro;
+    private string? mensagemSucesso;
+    private bool salvando;
+
+    protected override Task OnInitializedAsync() => CarregarCategoriasAsync();
+
+    private async Task MudarTipoAsync(TipoLancamento novoTipo)
+    {
+        tipo = novoTipo;
+        categoriaId = null;
+        mensagemSucesso = null;
+        mensagemErro = null;
+        await CarregarCategoriasAsync();
+    }
+
+    private async Task CarregarCategoriasAsync()
+    {
+        categorias = await Api.GetCategoriasAsync(tipo);
+    }
+
+    private async Task SalvarAsync()
+    {
+        mensagemErro = null;
+        mensagemSucesso = null;
+
+        if (valor is null or <= 0)
+        {
+            mensagemErro = "Informe um valor maior que zero.";
+            return;
+        }
+
+        if (categoriaId is null)
+        {
+            mensagemErro = "Selecione uma categoria.";
+            return;
+        }
+
+        salvando = true;
+        try
+        {
+            if (tipo == TipoLancamento.Gasto)
+            {
+                await Api.RegistrarGastoAsync(new CriarGastoRequest(
+                    valor.Value, data, descricao, categoriaId.Value, formaPagamento, null));
+                mensagemSucesso = $"Gasto de {Formatacao.Moeda(valor.Value)} lançado.";
+            }
+            else
+            {
+                await Api.RegistrarReceitaAsync(new CriarReceitaRequest(
+                    valor.Value, data, descricao, categoriaId.Value, null));
+                mensagemSucesso = $"Receita de {Formatacao.Moeda(valor.Value)} lançada.";
+            }
+
+            valor = null;
+            descricao = string.Empty;
+        }
+        catch (ApiException ex)
+        {
+            mensagemErro = ex.Message;
+        }
+        finally
+        {
+            salvando = false;
+        }
+    }
+}

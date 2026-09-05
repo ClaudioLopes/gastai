@@ -1,0 +1,172 @@
+@page "/relatorio"
+@inject ApiClient Api
+
+<PageTitle>Relatório mensal</PageTitle>
+
+<div class="month-picker">
+    <button class="btn-link" @onclick="MesAnteriorAsync">‹ Anterior</button>
+    <span class="month-picker__label">@NomeMes(mes) @ano</span>
+    <button class="btn-link" @onclick="ProximoMesAsync">Próximo ›</button>
+</div>
+
+@if (mensagemErro is not null)
+{
+    <p class="alert-error">@mensagemErro</p>
+}
+
+@if (carregando)
+{
+    <p>Carregando...</p>
+}
+else if (relatorio is not null)
+{
+    <div class="summary-grid">
+        <div class="summary-item">
+            <div class="summary-item__label">Receitas</div>
+            <div class="summary-item__value">@Formatacao.Moeda(relatorio.TotalReceitas)</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-item__label">Gastos</div>
+            <div class="summary-item__value">@Formatacao.Moeda(relatorio.TotalGastos)</div>
+        </div>
+        <div class="summary-item" style="grid-column: span 2;">
+            <div class="summary-item__label">Saldo do mês</div>
+            <div class="summary-item__value" style="color: @(relatorio.Saldo >= 0 ? "var(--color-primary-dark)" : "var(--color-danger)")">
+                @Formatacao.Moeda(relatorio.Saldo)
+            </div>
+        </div>
+    </div>
+
+    @if (relatorio.ComparacaoMesAnterior.ExisteDadosMesAnterior)
+    {
+        <div class="card">
+            <strong>Comparação com o mês anterior</strong>
+            <p>Gastos: @Formatacao.Percentual(relatorio.ComparacaoMesAnterior.VariacaoPercentualGastos) em relação a @Formatacao.Moeda(relatorio.ComparacaoMesAnterior.TotalGastosMesAnterior)</p>
+            <p>Receitas: @Formatacao.Percentual(relatorio.ComparacaoMesAnterior.VariacaoPercentualReceitas) em relação a @Formatacao.Moeda(relatorio.ComparacaoMesAnterior.TotalReceitasMesAnterior)</p>
+        </div>
+    }
+
+    <div class="card">
+        <strong>Gasto por categoria</strong>
+        @if (relatorio.GastosPorCategoria.Count == 0)
+        {
+            <p>Nenhum gasto neste mês.</p>
+        }
+        else
+        {
+            @foreach (var item in relatorio.GastosPorCategoria)
+            {
+                <div class="category-row">
+                    <span class="category-row__dot" style="background: @CorCategoria(item.CategoriaId)"></span>
+                    <div style="flex:1">
+                        <div style="display:flex; justify-content:space-between; font-size:0.9rem;">
+                            <span>@item.CategoriaNome</span>
+                            <span>@Formatacao.Moeda(item.Valor) (@item.Percentual%)</span>
+                        </div>
+                        <div class="category-row__bar-track">
+                            <div class="category-row__bar-fill" style="width:@(item.Percentual)%; background:@CorCategoria(item.CategoriaId);"></div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+
+    <div class="card">
+        <strong>Lançamentos do mês</strong>
+        @if (lancamentos.Count == 0)
+        {
+            <p>Nenhum lançamento neste mês.</p>
+        }
+        else
+        {
+            @foreach (var lancamento in lancamentos)
+            {
+                <div class="lancamento-row">
+                    <div>
+                        <div>@lancamento.CategoriaNome @(string.IsNullOrWhiteSpace(lancamento.Descricao) ? "" : $"— {lancamento.Descricao}")</div>
+                        <div style="font-size:0.8rem; color:var(--color-muted);">@lancamento.Data.ToString("dd/MM")</div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:0.6rem;">
+                        <span style="color: @(lancamento.Tipo == TipoLancamento.Gasto ? "var(--color-danger)" : "var(--color-primary-dark)")">
+                            @(lancamento.Tipo == TipoLancamento.Gasto ? "-" : "+")@Formatacao.Moeda(lancamento.Valor)
+                        </span>
+                        <button class="btn-danger" title="Excluir" @onclick="() => ExcluirAsync(lancamento.Id)">✕</button>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+}
+
+@code {
+    private int ano;
+    private int mes;
+    private RelatorioMensalDto? relatorio;
+    private List<LancamentoDto> lancamentos = [];
+    private bool carregando;
+    private string? mensagemErro;
+
+    private static readonly string[] Paleta =
+        ["#F97316", "#3B82F6", "#8B5CF6", "#EC4899", "#EF4444", "#22C55E", "#14B8A6", "#EAB308", "#6B7280"];
+
+    protected override Task OnInitializedAsync()
+    {
+        var hoje = DateOnly.FromDateTime(DateTime.Now);
+        ano = hoje.Year;
+        mes = hoje.Month;
+        return CarregarAsync();
+    }
+
+    private async Task CarregarAsync()
+    {
+        carregando = true;
+        mensagemErro = null;
+        try
+        {
+            relatorio = await Api.GetRelatorioMensalAsync(ano, mes);
+            lancamentos = await Api.GetLancamentosAsync(ano, mes);
+        }
+        catch (ApiException ex)
+        {
+            mensagemErro = ex.Message;
+        }
+        finally
+        {
+            carregando = false;
+        }
+    }
+
+    private Task MesAnteriorAsync()
+    {
+        var novaData = new DateOnly(ano, mes, 1).AddMonths(-1);
+        ano = novaData.Year;
+        mes = novaData.Month;
+        return CarregarAsync();
+    }
+
+    private Task ProximoMesAsync()
+    {
+        var novaData = new DateOnly(ano, mes, 1).AddMonths(1);
+        ano = novaData.Year;
+        mes = novaData.Month;
+        return CarregarAsync();
+    }
+
+    private async Task ExcluirAsync(int id)
+    {
+        try
+        {
+            await Api.ExcluirLancamentoAsync(id);
+            await CarregarAsync();
+        }
+        catch (ApiException ex)
+        {
+            mensagemErro = ex.Message;
+        }
+    }
+
+    private string CorCategoria(int categoriaId) => Paleta[categoriaId % Paleta.Length];
+
+    private static string NomeMes(int mes) => new DateTime(2000, mes, 1).ToString("MMMM", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"));
+}
