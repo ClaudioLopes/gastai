@@ -21,6 +21,10 @@ src/
   GastAi.Infrastructure  EF Core (DbContext, migrations, repositórios)
   GastAi.Api             Web API (controllers) + hospeda os arquivos do Blazor WASM
   GastAi.Web             Blazor WebAssembly (PWA)
+tests/
+  GastAi.Domain.Tests       regras de negócio das entidades
+  GastAi.Application.Tests  casos de uso, com repositórios mockados (Moq)
+  GastAi.Api.Tests          testes de integração ponta a ponta (WebApplicationFactory + SQLite temporário)
 ```
 
 ## Rodando localmente
@@ -37,4 +41,10 @@ Para criar uma nova migration após alterar o modelo de dados:
 
 ```bash
 dotnet ef migrations add NomeDaMigration --project src/GastAi.Infrastructure --startup-project src/GastAi.Api -o Persistence/Migrations
+```
+
+## Rodando os testes
+
+```bash
+dotnet test
 ```
