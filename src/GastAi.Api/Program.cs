@@ -4,6 +4,7 @@ using GastAi.Infrastructure;
 using GastAi.Infrastructure.Identity;
 using GastAi.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Authorization;
@@ -11,6 +12,18 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Mesmo diretório do arquivo SQLite (volume persistente em produção) — evita
+// que as chaves de proteção de dados (que criptografam o cookie de login)
+// sejam recriadas a cada reinício do container, o que derrubaria a sessão
+// de todo mundo sempre que a máquina hibernar por inatividade.
+var sqliteConnectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? "Data Source=App_Data/gastai.db";
+var sqliteDataDirectory = Path.GetDirectoryName(
+    Path.GetFullPath(new SqliteConnectionStringBuilder(sqliteConnectionString).DataSource))!;
+
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(sqliteDataDirectory, "dataprotection-keys")));
 
 builder.Services.AddControllers(options =>
 {
@@ -69,15 +82,11 @@ forwardedHeadersOptions.KnownNetworks.Clear();
 forwardedHeadersOptions.KnownProxies.Clear();
 app.UseForwardedHeaders(forwardedHeadersOptions);
 
+Directory.CreateDirectory(sqliteDataDirectory);
+
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<GastAiDbContext>();
-
-    var dataSource = new SqliteConnectionStringBuilder(db.Database.GetConnectionString()).DataSource;
-    var directory = Path.GetDirectoryName(Path.GetFullPath(dataSource));
-    if (!string.IsNullOrEmpty(directory))
-        Directory.CreateDirectory(directory);
-
     db.Database.Migrate();
 
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
