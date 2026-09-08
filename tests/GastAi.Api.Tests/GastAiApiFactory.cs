@@ -10,6 +10,9 @@ namespace GastAi.Api.Tests;
 /// </summary>
 public class GastAiApiFactory : WebApplicationFactory<Program>
 {
+    public const string OwnerEmail = "owner@gastai.test";
+    public const string OwnerPassword = "Teste!12345678";
+
     private readonly string _dbPath = Path.Combine(Path.GetTempPath(), $"gastai-tests-{Guid.NewGuid():N}.db");
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -19,6 +22,8 @@ public class GastAiApiFactory : WebApplicationFactory<Program>
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:DefaultConnection"] = $"Data Source={_dbPath}",
+                ["Auth:OwnerEmail"] = OwnerEmail,
+                ["Auth:OwnerPassword"] = OwnerPassword,
             });
         });
     }

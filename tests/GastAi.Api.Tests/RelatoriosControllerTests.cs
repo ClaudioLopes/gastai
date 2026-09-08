@@ -5,30 +5,29 @@ using GastAi.Domain.Enums;
 
 namespace GastAi.Api.Tests;
 
-public class RelatoriosControllerTests(GastAiApiFactory factory) : IClassFixture<GastAiApiFactory>
+public class RelatoriosControllerTests(GastAiApiFactory factory)
+    : AuthenticatedApiTestBase(factory), IClassFixture<GastAiApiFactory>
 {
     private const int CategoriaAlimentacaoId = 1;
     private const int CategoriaTransporteId = 2;
     private const int CategoriaSalarioId = 7;
 
-    private readonly HttpClient _client = factory.CreateClient();
-
     [Fact]
     public async Task Mensal_ComLancamentosNoMesENoAnterior_CalculaTotaisEComparacao()
     {
         // Mês anterior (agosto/2032): só gasto, sem receita.
-        await _client.PostAsJsonAsync("/api/lancamentos/gastos",
+        await Client.PostAsJsonAsync("/api/lancamentos/gastos",
             new CriarGastoRequest(100m, new DateOnly(2032, 8, 10), "x", CategoriaAlimentacaoId, FormaPagamento.Pix, null));
 
         // Mês corrente (setembro/2032): dois gastos e uma receita.
-        await _client.PostAsJsonAsync("/api/lancamentos/gastos",
+        await Client.PostAsJsonAsync("/api/lancamentos/gastos",
             new CriarGastoRequest(75m, new DateOnly(2032, 9, 5), "mercado", CategoriaAlimentacaoId, FormaPagamento.Pix, null));
-        await _client.PostAsJsonAsync("/api/lancamentos/gastos",
+        await Client.PostAsJsonAsync("/api/lancamentos/gastos",
             new CriarGastoRequest(25m, new DateOnly(2032, 9, 6), "onibus", CategoriaTransporteId, FormaPagamento.Debito, null));
-        await _client.PostAsJsonAsync("/api/lancamentos/receitas",
+        await Client.PostAsJsonAsync("/api/lancamentos/receitas",
             new CriarReceitaRequest(1000m, new DateOnly(2032, 9, 1), "salário", CategoriaSalarioId, null));
 
-        var relatorio = await _client.GetFromJsonAsync<RelatorioMensalDto>("/api/relatorios/mensal?ano=2032&mes=9");
+        var relatorio = await Client.GetFromJsonAsync<RelatorioMensalDto>("/api/relatorios/mensal?ano=2032&mes=9");
 
         Assert.NotNull(relatorio);
         Assert.Equal(1000m, relatorio!.TotalReceitas);
@@ -45,7 +44,7 @@ public class RelatoriosControllerTests(GastAiApiFactory factory) : IClassFixture
     [Fact]
     public async Task Mensal_SemLancamentos_RetornaTotaisZeradosESemComparacao()
     {
-        var relatorio = await _client.GetFromJsonAsync<RelatorioMensalDto>("/api/relatorios/mensal?ano=2033&mes=1");
+        var relatorio = await Client.GetFromJsonAsync<RelatorioMensalDto>("/api/relatorios/mensal?ano=2033&mes=1");
 
         Assert.NotNull(relatorio);
         Assert.Equal(0m, relatorio!.TotalReceitas);

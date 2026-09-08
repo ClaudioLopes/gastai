@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using GastAi.Contracts.Auth;
 using GastAi.Contracts.Categorias;
 using GastAi.Contracts.Lancamentos;
 using GastAi.Contracts.Relatorios;
@@ -10,6 +11,12 @@ file record ProblemDetailsLike(string? Title, int? Status);
 
 public class ApiClient(HttpClient http)
 {
+    public Task LoginAsync(string email, string password)
+        => SendJsonAsync(HttpMethod.Post, "api/auth/login", new LoginRequest(email, password));
+
+    public Task LogoutAsync()
+        => SendAsync(HttpMethod.Post, "api/auth/logout");
+
     public async Task<List<CategoriaDto>> GetCategoriasAsync(TipoLancamento? tipo = null, bool incluirInativas = false)
     {
         var query = new List<string>();
@@ -51,6 +58,13 @@ public class ApiClient(HttpClient http)
     private async Task SendAsync(HttpMethod method, string url)
     {
         var response = await http.SendAsync(new HttpRequestMessage(method, url));
+        await ThrowIfFailedAsync(response);
+    }
+
+    private async Task SendJsonAsync<TRequest>(HttpMethod method, string url, TRequest body)
+    {
+        var request = new HttpRequestMessage(method, url) { Content = JsonContent.Create(body) };
+        var response = await http.SendAsync(request);
         await ThrowIfFailedAsync(response);
     }
 

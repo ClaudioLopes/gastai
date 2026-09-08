@@ -5,19 +5,18 @@ using GastAi.Domain.Enums;
 
 namespace GastAi.Api.Tests;
 
-public class LancamentosControllerTests(GastAiApiFactory factory) : IClassFixture<GastAiApiFactory>
+public class LancamentosControllerTests(GastAiApiFactory factory)
+    : AuthenticatedApiTestBase(factory), IClassFixture<GastAiApiFactory>
 {
     private const int CategoriaAlimentacaoId = 1;
     private const int CategoriaSalarioId = 7;
-
-    private readonly HttpClient _client = factory.CreateClient();
 
     [Fact]
     public async Task RegistrarGasto_Valido_RetornaOkComDto()
     {
         var request = new CriarGastoRequest(45.90m, new DateOnly(2031, 1, 10), "Mercado", CategoriaAlimentacaoId, FormaPagamento.Pix, null);
 
-        var response = await _client.PostAsJsonAsync("/api/lancamentos/gastos", request);
+        var response = await Client.PostAsJsonAsync("/api/lancamentos/gastos", request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var dto = await response.Content.ReadFromJsonAsync<LancamentoDto>();
@@ -32,7 +31,7 @@ public class LancamentosControllerTests(GastAiApiFactory factory) : IClassFixtur
     {
         var request = new CriarGastoRequest(-10m, new DateOnly(2031, 1, 10), "x", CategoriaAlimentacaoId, FormaPagamento.Pix, null);
 
-        var response = await _client.PostAsJsonAsync("/api/lancamentos/gastos", request);
+        var response = await Client.PostAsJsonAsync("/api/lancamentos/gastos", request);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -42,7 +41,7 @@ public class LancamentosControllerTests(GastAiApiFactory factory) : IClassFixtur
     {
         var request = new CriarGastoRequest(10m, new DateOnly(2031, 1, 10), "x", 9999, FormaPagamento.Pix, null);
 
-        var response = await _client.PostAsJsonAsync("/api/lancamentos/gastos", request);
+        var response = await Client.PostAsJsonAsync("/api/lancamentos/gastos", request);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -52,7 +51,7 @@ public class LancamentosControllerTests(GastAiApiFactory factory) : IClassFixtur
     {
         var request = new CriarGastoRequest(10m, new DateOnly(2031, 1, 10), "x", CategoriaSalarioId, FormaPagamento.Pix, null);
 
-        var response = await _client.PostAsJsonAsync("/api/lancamentos/gastos", request);
+        var response = await Client.PostAsJsonAsync("/api/lancamentos/gastos", request);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -62,7 +61,7 @@ public class LancamentosControllerTests(GastAiApiFactory factory) : IClassFixtur
     {
         var request = new CriarReceitaRequest(3000m, new DateOnly(2031, 2, 5), "Salário", CategoriaSalarioId, null);
 
-        var response = await _client.PostAsJsonAsync("/api/lancamentos/receitas", request);
+        var response = await Client.PostAsJsonAsync("/api/lancamentos/receitas", request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var dto = await response.Content.ReadFromJsonAsync<LancamentoDto>();
@@ -72,12 +71,12 @@ public class LancamentosControllerTests(GastAiApiFactory factory) : IClassFixtur
     [Fact]
     public async Task Atualizar_LancamentoExistente_AtualizaCampos()
     {
-        var criado = await (await _client.PostAsJsonAsync("/api/lancamentos/gastos",
+        var criado = await (await Client.PostAsJsonAsync("/api/lancamentos/gastos",
                 new CriarGastoRequest(10m, new DateOnly(2031, 3, 1), "original", CategoriaAlimentacaoId, FormaPagamento.Dinheiro, null)))
             .Content.ReadFromJsonAsync<LancamentoDto>();
 
         var atualizarRequest = new AtualizarLancamentoRequest(99.90m, new DateOnly(2031, 3, 2), "atualizado", CategoriaAlimentacaoId, FormaPagamento.Credito, "obs");
-        var response = await _client.PutAsJsonAsync($"/api/lancamentos/{criado!.Id}", atualizarRequest);
+        var response = await Client.PutAsJsonAsync($"/api/lancamentos/{criado!.Id}", atualizarRequest);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var atualizado = await response.Content.ReadFromJsonAsync<LancamentoDto>();
@@ -91,7 +90,7 @@ public class LancamentosControllerTests(GastAiApiFactory factory) : IClassFixtur
     {
         var atualizarRequest = new AtualizarLancamentoRequest(10m, new DateOnly(2031, 3, 1), "x", CategoriaAlimentacaoId, FormaPagamento.Pix, null);
 
-        var response = await _client.PutAsJsonAsync("/api/lancamentos/999999", atualizarRequest);
+        var response = await Client.PutAsJsonAsync("/api/lancamentos/999999", atualizarRequest);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -99,26 +98,26 @@ public class LancamentosControllerTests(GastAiApiFactory factory) : IClassFixtur
     [Fact]
     public async Task Excluir_LancamentoExistente_RemoveEDeixaDeAparecerNaListagem()
     {
-        var criado = await (await _client.PostAsJsonAsync("/api/lancamentos/gastos",
+        var criado = await (await Client.PostAsJsonAsync("/api/lancamentos/gastos",
                 new CriarGastoRequest(10m, new DateOnly(2031, 4, 1), "a excluir", CategoriaAlimentacaoId, FormaPagamento.Pix, null)))
             .Content.ReadFromJsonAsync<LancamentoDto>();
 
-        var delete = await _client.DeleteAsync($"/api/lancamentos/{criado!.Id}");
+        var delete = await Client.DeleteAsync($"/api/lancamentos/{criado!.Id}");
         Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode);
 
-        var lista = await _client.GetFromJsonAsync<List<LancamentoDto>>("/api/lancamentos?ano=2031&mes=4");
+        var lista = await Client.GetFromJsonAsync<List<LancamentoDto>>("/api/lancamentos?ano=2031&mes=4");
         Assert.DoesNotContain(lista!, l => l.Id == criado.Id);
     }
 
     [Fact]
     public async Task ListarPorMes_RetornaApenasLancamentosDoMesInformado()
     {
-        await _client.PostAsJsonAsync("/api/lancamentos/gastos",
+        await Client.PostAsJsonAsync("/api/lancamentos/gastos",
             new CriarGastoRequest(10m, new DateOnly(2031, 5, 15), "dentro do mes", CategoriaAlimentacaoId, FormaPagamento.Pix, null));
-        await _client.PostAsJsonAsync("/api/lancamentos/gastos",
+        await Client.PostAsJsonAsync("/api/lancamentos/gastos",
             new CriarGastoRequest(20m, new DateOnly(2031, 6, 1), "fora do mes", CategoriaAlimentacaoId, FormaPagamento.Pix, null));
 
-        var lista = await _client.GetFromJsonAsync<List<LancamentoDto>>("/api/lancamentos?ano=2031&mes=5");
+        var lista = await Client.GetFromJsonAsync<List<LancamentoDto>>("/api/lancamentos?ano=2031&mes=5");
 
         Assert.Contains(lista!, l => l.Descricao == "dentro do mes");
         Assert.DoesNotContain(lista!, l => l.Descricao == "fora do mes");

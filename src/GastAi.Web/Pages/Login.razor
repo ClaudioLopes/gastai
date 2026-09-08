@@ -1,0 +1,66 @@
+@page "/login"
+@layout LoginLayout
+@inject ApiClient Api
+@inject CustomAuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+
+<PageTitle>Entrar</PageTitle>
+
+<div class="login-card">
+    <h1 class="login-title">GastAi</h1>
+
+    @if (mensagemErro is not null)
+    {
+        <p class="alert-error">@mensagemErro</p>
+    }
+
+    <EditForm Model="this" OnValidSubmit="EntrarAsync">
+        <div class="field">
+            <label for="email">E-mail</label>
+            <input id="email" type="email" autocomplete="username" @bind="email" />
+        </div>
+
+        <div class="field">
+            <label for="senha">Senha</label>
+            <input id="senha" type="password" autocomplete="current-password" @bind="senha" />
+        </div>
+
+        <button type="submit" class="btn-primary" disabled="@entrando">
+            @(entrando ? "Entrando..." : "Entrar")
+        </button>
+    </EditForm>
+</div>
+
+@code {
+    private string email = string.Empty;
+    private string senha = string.Empty;
+    private bool entrando;
+    private string? mensagemErro;
+
+    private async Task EntrarAsync()
+    {
+        mensagemErro = null;
+
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(senha))
+        {
+            mensagemErro = "Informe e-mail e senha.";
+            return;
+        }
+
+        entrando = true;
+        try
+        {
+            await Api.LoginAsync(email, senha);
+            AuthStateProvider.NotificarMudancaDeEstado();
+            Navigation.NavigateTo("/", forceLoad: false);
+        }
+        catch (ApiException ex)
+        {
+            mensagemErro = ex.Message;
+        }
+        finally
+        {
+            entrando = false;
+        }
+    }
+}

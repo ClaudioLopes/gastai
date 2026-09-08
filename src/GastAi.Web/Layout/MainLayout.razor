@@ -1,8 +1,12 @@
 @inherits LayoutComponentBase
+@inject ApiClient Api
+@inject CustomAuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
 
 <div class="app-shell">
     <header class="app-header">
         <span class="app-header__title">GastAi</span>
+        <button class="logout-button" title="Sair" @onclick="SairAsync">Sair</button>
     </header>
 
     <main class="app-content">
@@ -24,3 +28,12 @@
         </NavLink>
     </nav>
 </div>
+
+@code {
+    private async Task SairAsync()
+    {
+        await Api.LogoutAsync();
+        AuthStateProvider.NotificarMudancaDeEstado();
+        Navigation.NavigateTo("/login", forceLoad: false);
+    }
+}
