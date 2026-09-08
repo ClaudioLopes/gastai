@@ -35,7 +35,7 @@ else
             </div>
         }
         <div class="orcamento-input-row">
-            <input type="number" min="0" step="0.01" @bind="valores[ChaveGeral]" placeholder="Sem limite" />
+            <input type="text" inputmode="decimal" @bind="valores[ChaveGeral]" @bind:event="oninput" placeholder="Sem limite" />
             <button class="btn-primary btn-inline" @onclick="() => SalvarAsync(null)">Salvar</button>
             @if (geral is not null)
             {
@@ -65,7 +65,7 @@ else
                     </div>
                 }
                 <div class="orcamento-input-row">
-                    <input type="number" min="0" step="0.01" @bind="valores[categoria.Id]" placeholder="Sem limite" />
+                    <input type="text" inputmode="decimal" @bind="valores[categoria.Id]" @bind:event="oninput" placeholder="Sem limite" />
                     <button class="btn-primary btn-inline" @onclick="() => SalvarAsync(categoria.Id)">Salvar</button>
                     @if (orcamentoCategoria is not null)
                     {
@@ -85,7 +85,7 @@ else
     private int mes;
     private List<CategoriaDto> categoriasGasto = [];
     private List<OrcamentoMensalDto> orcamentos = [];
-    private Dictionary<int, decimal?> valores = new();
+    private Dictionary<int, string> valores = new();
     private string? mensagemErro;
     private bool carregando;
 
@@ -106,9 +106,9 @@ else
             categoriasGasto = await Api.GetCategoriasAsync(TipoLancamento.Gasto);
             orcamentos = await Api.GetOrcamentosAsync(ano, mes);
 
-            valores = new Dictionary<int, decimal?> { [ChaveGeral] = OrcamentoDe(null)?.ValorLimite };
+            valores = new Dictionary<int, string> { [ChaveGeral] = Formatacao.ParaEdicao(OrcamentoDe(null)?.ValorLimite) };
             foreach (var categoria in categoriasGasto)
-                valores[categoria.Id] = OrcamentoDe(categoria.Id)?.ValorLimite;
+                valores[categoria.Id] = Formatacao.ParaEdicao(OrcamentoDe(categoria.Id)?.ValorLimite);
         }
         catch (ApiException ex)
         {
@@ -141,7 +141,7 @@ else
     private async Task SalvarAsync(int? categoriaId)
     {
         mensagemErro = null;
-        var valor = valores.GetValueOrDefault(categoriaId ?? ChaveGeral);
+        var valor = Formatacao.ParseValorDigitado(valores.GetValueOrDefault(categoriaId ?? ChaveGeral));
 
         if (valor is null || valor < 0)
         {

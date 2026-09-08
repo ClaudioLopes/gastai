@@ -29,7 +29,7 @@
 <EditForm Model="this" OnValidSubmit="SalvarAsync">
     <div class="field">
         <label for="valor">Valor (R$)</label>
-        <input id="valor" type="number" min="0.01" step="0.01" inputmode="decimal" @bind="valor" @bind:event="oninput" placeholder="0,00" />
+        <input id="valor" type="text" inputmode="decimal" @bind="valorTexto" @bind:event="oninput" placeholder="0,00" />
     </div>
 
     <div class="field">
@@ -74,7 +74,7 @@
 @code {
     private TipoLancamento tipo = TipoLancamento.Gasto;
     private List<CategoriaDto> categorias = [];
-    private decimal? valor;
+    private string valorTexto = string.Empty;
     private DateOnly data = DateOnly.FromDateTime(DateTime.Now);
     private string descricao = string.Empty;
     private int? categoriaId;
@@ -106,6 +106,8 @@
         mensagemSucesso = null;
         alertasOrcamento = [];
 
+        var valor = Formatacao.ParseValorDigitado(valorTexto);
+
         if (valor is null or <= 0)
         {
             mensagemErro = "Informe um valor maior que zero.";
@@ -135,7 +137,7 @@
                 mensagemSucesso = $"Receita de {Formatacao.Moeda(valor.Value)} lançada.";
             }
 
-            valor = null;
+            valorTexto = string.Empty;
             descricao = string.Empty;
         }
         catch (ApiException ex)
