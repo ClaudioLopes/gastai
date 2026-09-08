@@ -1,5 +1,6 @@
 using GastAi.Application.Abstractions;
 using GastAi.Application.Exceptions;
+using GastAi.Application.Orcamentos;
 using GastAi.Contracts.Lancamentos;
 using GastAi.Domain.Entities;
 using GastAi.Domain.Enums;
@@ -10,9 +11,10 @@ namespace GastAi.Application.Lancamentos;
 public class LancamentoService(
     ILancamentoRepository lancamentos,
     ICategoriaRepository categorias,
+    IOrcamentoService orcamentos,
     IUnitOfWork unitOfWork) : ILancamentoService
 {
-    public async Task<LancamentoDto> RegistrarGastoAsync(CriarGastoRequest request, CancellationToken ct = default)
+    public async Task<RegistrarGastoResultDto> RegistrarGastoAsync(CriarGastoRequest request, CancellationToken ct = default)
     {
         var categoria = await ObterCategoriaValidaAsync(request.CategoriaId, TipoLancamento.Gasto, ct);
 
@@ -22,7 +24,10 @@ public class LancamentoService(
         await lancamentos.AddAsync(lancamento, ct);
         await unitOfWork.SaveChangesAsync(ct);
 
-        return ParaDto(lancamento, categoria);
+        var alertas = await orcamentos.VerificarAlertasAsync(
+            request.CategoriaId, categoria.Nome, request.Data.Year, request.Data.Month, ct);
+
+        return new RegistrarGastoResultDto(ParaDto(lancamento, categoria), alertas);
     }
 
     public async Task<LancamentoDto> RegistrarReceitaAsync(CriarReceitaRequest request, CancellationToken ct = default)

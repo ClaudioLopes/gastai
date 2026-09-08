@@ -1,0 +1,188 @@
+@page "/orcamento"
+@attribute [Authorize]
+@inject ApiClient Api
+
+<PageTitle>Orçamento</PageTitle>
+
+<div class="month-picker">
+    <button class="btn-link" @onclick="MesAnteriorAsync">‹ Anterior</button>
+    <span class="month-picker__label">@NomeMes(mes) @ano</span>
+    <button class="btn-link" @onclick="ProximoMesAsync">Próximo ›</button>
+</div>
+
+@if (mensagemErro is not null)
+{
+    <p class="alert-error">@mensagemErro</p>
+}
+
+@if (carregando)
+{
+    <p>Carregando...</p>
+}
+else
+{
+    var geral = OrcamentoDe(null);
+
+    <div class="card">
+        <strong>Orçamento geral do mês</strong>
+        @if (geral is not null)
+        {
+            <div class="orcamento-bar-row">
+                <div class="category-row__bar-track">
+                    <div class="category-row__bar-fill" style="width:@(Math.Min(geral.PercentualConsumido, 100))%; background:@(CorBarra(geral.PercentualConsumido));"></div>
+                </div>
+                <span class="orcamento-valor-info">@Formatacao.Moeda(geral.ValorGasto) de @Formatacao.Moeda(geral.ValorLimite) (@geral.PercentualConsumido%)</span>
+            </div>
+        }
+        <div class="orcamento-input-row">
+            <input type="number" min="0" step="0.01" @bind="valores[ChaveGeral]" placeholder="Sem limite" />
+            <button class="btn-primary btn-inline" @onclick="() => SalvarAsync(null)">Salvar</button>
+            @if (geral is not null)
+            {
+                <button class="btn-danger" title="Remover limite" @onclick="() => RemoverAsync(null)">✕</button>
+            }
+        </div>
+    </div>
+
+    <div class="card">
+        <strong>Por categoria</strong>
+        @if (categoriasGasto.Count == 0)
+        {
+            <p>Nenhuma categoria de gasto cadastrada.</p>
+        }
+        @foreach (var categoria in categoriasGasto)
+        {
+            var orcamentoCategoria = OrcamentoDe(categoria.Id);
+            <div class="orcamento-categoria">
+                <div class="orcamento-categoria__nome">@categoria.Nome</div>
+                @if (orcamentoCategoria is not null)
+                {
+                    <div class="orcamento-bar-row">
+                        <div class="category-row__bar-track">
+                            <div class="category-row__bar-fill" style="width:@(Math.Min(orcamentoCategoria.PercentualConsumido, 100))%; background:@(CorBarra(orcamentoCategoria.PercentualConsumido));"></div>
+                        </div>
+                        <span class="orcamento-valor-info">@Formatacao.Moeda(orcamentoCategoria.ValorGasto) de @Formatacao.Moeda(orcamentoCategoria.ValorLimite) (@orcamentoCategoria.PercentualConsumido%)</span>
+                    </div>
+                }
+                <div class="orcamento-input-row">
+                    <input type="number" min="0" step="0.01" @bind="valores[categoria.Id]" placeholder="Sem limite" />
+                    <button class="btn-primary btn-inline" @onclick="() => SalvarAsync(categoria.Id)">Salvar</button>
+                    @if (orcamentoCategoria is not null)
+                    {
+                        <button class="btn-danger" title="Remover limite" @onclick="() => RemoverAsync(categoria.Id)">✕</button>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    /// <summary>Nenhuma categoria real usa o Id 0 (autoincrement começa em 1) — representa "geral" no dicionário de inputs.</summary>
+    private const int ChaveGeral = 0;
+
+    private int ano;
+    private int mes;
+    private List<CategoriaDto> categoriasGasto = [];
+    private List<OrcamentoMensalDto> orcamentos = [];
+    private Dictionary<int, decimal?> valores = new();
+    private string? mensagemErro;
+    private bool carregando;
+
+    protected override Task OnInitializedAsync()
+    {
+        var hoje = DateOnly.FromDateTime(DateTime.Now);
+        ano = hoje.Year;
+        mes = hoje.Month;
+        return CarregarAsync();
+    }
+
+    private async Task CarregarAsync()
+    {
+        carregando = true;
+        mensagemErro = null;
+        try
+        {
+            categoriasGasto = await Api.GetCategoriasAsync(TipoLancamento.Gasto);
+            orcamentos = await Api.GetOrcamentosAsync(ano, mes);
+
+            valores = new Dictionary<int, decimal?> { [ChaveGeral] = OrcamentoDe(null)?.ValorLimite };
+            foreach (var categoria in categoriasGasto)
+                valores[categoria.Id] = OrcamentoDe(categoria.Id)?.ValorLimite;
+        }
+        catch (ApiException ex)
+        {
+            mensagemErro = ex.Message;
+        }
+        finally
+        {
+            carregando = false;
+        }
+    }
+
+    private OrcamentoMensalDto? OrcamentoDe(int? categoriaId) => orcamentos.FirstOrDefault(o => o.CategoriaId == categoriaId);
+
+    private Task MesAnteriorAsync()
+    {
+        var novaData = new DateOnly(ano, mes, 1).AddMonths(-1);
+        ano = novaData.Year;
+        mes = novaData.Month;
+        return CarregarAsync();
+    }
+
+    private Task ProximoMesAsync()
+    {
+        var novaData = new DateOnly(ano, mes, 1).AddMonths(1);
+        ano = novaData.Year;
+        mes = novaData.Month;
+        return CarregarAsync();
+    }
+
+    private async Task SalvarAsync(int? categoriaId)
+    {
+        mensagemErro = null;
+        var valor = valores.GetValueOrDefault(categoriaId ?? ChaveGeral);
+
+        if (valor is null || valor < 0)
+        {
+            mensagemErro = "Informe um valor de limite válido.";
+            return;
+        }
+
+        try
+        {
+            await Api.DefinirOrcamentoAsync(new DefinirOrcamentoRequest(ano, mes, categoriaId, valor.Value));
+            await CarregarAsync();
+        }
+        catch (ApiException ex)
+        {
+            mensagemErro = ex.Message;
+        }
+    }
+
+    private async Task RemoverAsync(int? categoriaId)
+    {
+        var orcamento = OrcamentoDe(categoriaId);
+        if (orcamento is null)
+            return;
+
+        try
+        {
+            await Api.ExcluirOrcamentoAsync(orcamento.Id);
+            await CarregarAsync();
+        }
+        catch (ApiException ex)
+        {
+            mensagemErro = ex.Message;
+        }
+    }
+
+    private static string CorBarra(decimal percentual)
+    {
+        if (percentual < 70) return "var(--color-primary)";
+        if (percentual <= 100) return "#f59e0b";
+        return "var(--color-danger)";
+    }
+
+    private static string NomeMes(int mes) => new DateTime(2000, mes, 1).ToString("MMMM", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"));
+}

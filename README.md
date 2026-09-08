@@ -7,6 +7,8 @@ Documentação completa do projeto (visão, escopo, arquitetura, roadmap): [docs
 
 **Fase 1 (MVP)** — concluída: lançamento de gasto/receita, categorias (padrão + customizadas) e relatório mensal com comparação ao mês anterior.
 
+**Fase 2** — concluída: orçamento/meta mensal geral e por categoria, com indicador visual de consumo e alerta (não bloqueante) ao lançar um gasto que ultrapassa o limite.
+
 **Autenticação** — concluída: login com e-mail/senha (ASP.NET Core Identity). App de uso individual — não há registro público; o único usuário (o dono) é criado no primeiro start a partir de `Auth:OwnerEmail`/`Auth:OwnerPassword`. WebAuthn/Passkey (mencionado na documentação como conveniência sobre esse método base) fica para depois.
 
 **Publicado em produção:** https://gastai.fly.dev (Fly.io, plano gratuito).

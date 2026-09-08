@@ -1,5 +1,6 @@
 using GastAi.Application.Categorias;
 using GastAi.Application.Lancamentos;
+using GastAi.Application.Orcamentos;
 using GastAi.Application.Relatorios;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -12,6 +13,7 @@ public static class DependencyInjection
         services.AddScoped<ICategoriaService, CategoriaService>();
         services.AddScoped<ILancamentoService, LancamentoService>();
         services.AddScoped<IRelatorioMensalService, RelatorioMensalService>();
+        services.AddScoped<IOrcamentoService, OrcamentoService>();
 
         return services;
     }

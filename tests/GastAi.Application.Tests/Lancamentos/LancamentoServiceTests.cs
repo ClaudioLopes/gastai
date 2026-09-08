@@ -1,6 +1,7 @@
 using GastAi.Application.Abstractions;
 using GastAi.Application.Exceptions;
 using GastAi.Application.Lancamentos;
+using GastAi.Application.Orcamentos;
 using GastAi.Application.Tests.TestUtils;
 using GastAi.Contracts.Lancamentos;
 using GastAi.Domain.Entities;
@@ -16,12 +17,18 @@ public class LancamentoServiceTests
 
     private readonly Mock<ILancamentoRepository> _lancamentos = new();
     private readonly Mock<ICategoriaRepository> _categorias = new();
+    private readonly Mock<IOrcamentoService> _orcamentos = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly LancamentoService _service;
 
     public LancamentoServiceTests()
     {
-        _service = new LancamentoService(_lancamentos.Object, _categorias.Object, _unitOfWork.Object);
+        _orcamentos
+            .Setup(o => o.VerificarAlertasAsync(
+                It.IsAny<int>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        _service = new LancamentoService(_lancamentos.Object, _categorias.Object, _orcamentos.Object, _unitOfWork.Object);
     }
 
     [Fact]
@@ -51,13 +58,30 @@ public class LancamentoServiceTests
         var categoria = new Categoria("Alimentação", TipoLancamento.Gasto);
         _categorias.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(categoria);
 
-        var dto = await _service.RegistrarGastoAsync(new CriarGastoRequest(45.9m, Hoje, "Mercado", 1, FormaPagamento.Pix, null));
+        var resultado = await _service.RegistrarGastoAsync(new CriarGastoRequest(45.9m, Hoje, "Mercado", 1, FormaPagamento.Pix, null));
 
-        Assert.Equal("Alimentação", dto.CategoriaNome);
-        Assert.Equal(45.9m, dto.Valor);
-        Assert.Equal(TipoLancamento.Gasto, dto.Tipo);
+        Assert.Equal("Alimentação", resultado.Lancamento.CategoriaNome);
+        Assert.Equal(45.9m, resultado.Lancamento.Valor);
+        Assert.Equal(TipoLancamento.Gasto, resultado.Lancamento.Tipo);
+        Assert.Empty(resultado.AlertasOrcamento);
         _lancamentos.Verify(r => r.AddAsync(It.IsAny<Lancamento>(), It.IsAny<CancellationToken>()), Times.Once);
         _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RegistrarGastoAsync_ComOrcamentoEstourado_RepassaAlertas()
+    {
+        var categoria = new Categoria("Alimentação", TipoLancamento.Gasto);
+        _categorias.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(categoria);
+
+        _orcamentos
+            .Setup(o => o.VerificarAlertasAsync(1, "Alimentação", 2026, 9, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(["Orçamento de Alimentação estourado."]);
+
+        var resultado = await _service.RegistrarGastoAsync(new CriarGastoRequest(45.9m, Hoje, "Mercado", 1, FormaPagamento.Pix, null));
+
+        Assert.Single(resultado.AlertasOrcamento);
+        Assert.Equal("Orçamento de Alimentação estourado.", resultado.AlertasOrcamento[0]);
     }
 
     [Fact]

@@ -21,6 +21,10 @@
 {
     <p class="alert-warning">@mensagemSucesso</p>
 }
+@foreach (var alerta in alertasOrcamento)
+{
+    <p class="alert-error">⚠ @alerta</p>
+}
 
 <EditForm Model="this" OnValidSubmit="SalvarAsync">
     <div class="field">
@@ -77,6 +81,7 @@
     private FormaPagamento formaPagamento = FormaPagamento.Pix;
     private string? mensagemErro;
     private string? mensagemSucesso;
+    private List<string> alertasOrcamento = [];
     private bool salvando;
 
     protected override Task OnInitializedAsync() => CarregarCategoriasAsync();
@@ -99,6 +104,7 @@
     {
         mensagemErro = null;
         mensagemSucesso = null;
+        alertasOrcamento = [];
 
         if (valor is null or <= 0)
         {
@@ -117,9 +123,10 @@
         {
             if (tipo == TipoLancamento.Gasto)
             {
-                await Api.RegistrarGastoAsync(new CriarGastoRequest(
+                var resultado = await Api.RegistrarGastoAsync(new CriarGastoRequest(
                     valor.Value, data, descricao, categoriaId.Value, formaPagamento, null));
                 mensagemSucesso = $"Gasto de {Formatacao.Moeda(valor.Value)} lançado.";
+                alertasOrcamento = resultado?.AlertasOrcamento.ToList() ?? [];
             }
             else
             {

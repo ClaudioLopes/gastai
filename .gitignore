@@ -483,9 +483,11 @@ $RECYCLE.BIN/
 # Vim temporary swap files
 *.swp
 
-# GastAi - banco SQLite local (não versionar dados pessoais)
+# GastAi - banco SQLite local e chaves de sessão (não versionar dados pessoais)
 src/GastAi.Api/App_Data/*.db
 src/GastAi.Api/App_Data/*.db-shm
 src/GastAi.Api/App_Data/*.db-wal
+src/GastAi.Api/App_Data/dataprotection-keys/
 !src/GastAi.Api/App_Data/.gitkeep
 build.log
+test.log

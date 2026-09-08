@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using GastAi.Contracts.Auth;
 using GastAi.Contracts.Categorias;
 using GastAi.Contracts.Lancamentos;
+using GastAi.Contracts.Orcamentos;
 using GastAi.Contracts.Relatorios;
 using GastAi.Domain.Enums;
 
@@ -36,8 +37,8 @@ public class ApiClient(HttpClient http)
     public async Task<List<LancamentoDto>> GetLancamentosAsync(int ano, int mes)
         => await http.GetFromJsonAsync<List<LancamentoDto>>($"api/lancamentos?ano={ano}&mes={mes}") ?? [];
 
-    public Task<LancamentoDto?> RegistrarGastoAsync(CriarGastoRequest request)
-        => PostAsync<CriarGastoRequest, LancamentoDto>("api/lancamentos/gastos", request);
+    public Task<RegistrarGastoResultDto?> RegistrarGastoAsync(CriarGastoRequest request)
+        => PostAsync<CriarGastoRequest, RegistrarGastoResultDto>("api/lancamentos/gastos", request);
 
     public Task<LancamentoDto?> RegistrarReceitaAsync(CriarReceitaRequest request)
         => PostAsync<CriarReceitaRequest, LancamentoDto>("api/lancamentos/receitas", request);
@@ -48,9 +49,25 @@ public class ApiClient(HttpClient http)
     public async Task<RelatorioMensalDto?> GetRelatorioMensalAsync(int ano, int mes)
         => await http.GetFromJsonAsync<RelatorioMensalDto>($"api/relatorios/mensal?ano={ano}&mes={mes}");
 
+    public async Task<List<OrcamentoMensalDto>> GetOrcamentosAsync(int ano, int mes)
+        => await http.GetFromJsonAsync<List<OrcamentoMensalDto>>($"api/orcamentos?ano={ano}&mes={mes}") ?? [];
+
+    public Task<OrcamentoMensalDto?> DefinirOrcamentoAsync(DefinirOrcamentoRequest request)
+        => PutAsync<DefinirOrcamentoRequest, OrcamentoMensalDto>("api/orcamentos", request);
+
+    public Task ExcluirOrcamentoAsync(int id)
+        => SendAsync(HttpMethod.Delete, $"api/orcamentos/{id}");
+
     private async Task<TResponse?> PostAsync<TRequest, TResponse>(string url, TRequest request)
     {
         var response = await http.PostAsJsonAsync(url, request);
+        await ThrowIfFailedAsync(response);
+        return await response.Content.ReadFromJsonAsync<TResponse>();
+    }
+
+    private async Task<TResponse?> PutAsync<TRequest, TResponse>(string url, TRequest request)
+    {
+        var response = await http.PutAsJsonAsync(url, request);
         await ThrowIfFailedAsync(response);
         return await response.Content.ReadFromJsonAsync<TResponse>();
     }

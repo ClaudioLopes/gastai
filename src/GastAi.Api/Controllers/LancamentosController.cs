@@ -14,7 +14,7 @@ public class LancamentosController(ILancamentoService lancamentoService) : Contr
         => Ok(await lancamentoService.ListarPorMesAsync(ano, mes, ct));
 
     [HttpPost("gastos")]
-    public async Task<ActionResult<LancamentoDto>> RegistrarGasto(CriarGastoRequest request, CancellationToken ct)
+    public async Task<ActionResult<RegistrarGastoResultDto>> RegistrarGasto(CriarGastoRequest request, CancellationToken ct)
         => Ok(await lancamentoService.RegistrarGastoAsync(request, ct));
 
     [HttpPost("receitas")]

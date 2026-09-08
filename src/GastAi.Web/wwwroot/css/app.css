@@ -381,3 +381,48 @@ html, body {
 .month-picker__label {
     font-weight: 600;
 }
+
+.orcamento-categoria {
+    padding: 0.8rem 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.orcamento-categoria:last-child {
+    border-bottom: none;
+}
+
+.orcamento-categoria__nome {
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+}
+
+.orcamento-bar-row {
+    margin-bottom: 0.5rem;
+}
+
+.orcamento-valor-info {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--color-muted);
+    margin-top: 0.3rem;
+}
+
+.orcamento-input-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.orcamento-input-row input {
+    flex: 1;
+    padding: 0.5rem 0.6rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.5rem;
+    font-size: 0.95rem;
+}
+
+.btn-inline {
+    width: auto;
+    padding: 0.5rem 0.9rem;
+    font-size: 0.9rem;
+}
