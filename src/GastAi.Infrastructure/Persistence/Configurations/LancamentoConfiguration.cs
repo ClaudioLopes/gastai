@@ -28,5 +28,6 @@ public class LancamentoConfiguration : IEntityTypeConfiguration<Lancamento>
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(l => l.Data);
+        builder.HasIndex(l => l.GrupoParcelamentoId);
     }
 }

@@ -79,4 +79,35 @@ public class LancamentoTests
         Assert.Equal(FormaPagamento.Credito, lancamento.FormaPagamento);
         Assert.Equal("obs", lancamento.Observacao);
     }
+
+    [Fact]
+    public void MarcarComoParcela_ComDadosValidos_PreencheCampos()
+    {
+        var lancamento = Lancamento.NovoGasto(100m, Hoje, "TV", 1, FormaPagamento.Credito);
+        var grupoId = Guid.NewGuid();
+
+        lancamento.MarcarComoParcela(grupoId, numeroParcela: 3, totalParcelas: 12);
+
+        Assert.Equal(grupoId, lancamento.GrupoParcelamentoId);
+        Assert.Equal(3, lancamento.NumeroParcela);
+        Assert.Equal(12, lancamento.TotalParcelas);
+    }
+
+    [Fact]
+    public void MarcarComoParcela_MenosDeDuasParcelas_Lanca()
+    {
+        var lancamento = Lancamento.NovoGasto(100m, Hoje, "TV", 1, FormaPagamento.Credito);
+
+        Assert.Throws<DomainException>(() => lancamento.MarcarComoParcela(Guid.NewGuid(), 1, 1));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(13)]
+    public void MarcarComoParcela_NumeroParcelaForaDoIntervalo_Lanca(int numeroParcela)
+    {
+        var lancamento = Lancamento.NovoGasto(100m, Hoje, "TV", 1, FormaPagamento.Credito);
+
+        Assert.Throws<DomainException>(() => lancamento.MarcarComoParcela(Guid.NewGuid(), numeroParcela, 12));
+    }
 }

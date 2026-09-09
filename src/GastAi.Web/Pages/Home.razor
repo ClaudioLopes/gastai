@@ -47,13 +47,31 @@
     {
         <div class="field">
             <label for="formaPagamento">Forma de pagamento</label>
-            <select id="formaPagamento" @bind="formaPagamento">
+            <select id="formaPagamento" @bind="formaPagamento" @bind:after="() => parcelado = false">
                 @foreach (var forma in Enum.GetValues<FormaPagamento>())
                 {
                     <option value="@forma">@forma</option>
                 }
             </select>
         </div>
+
+        @if (formaPagamento == FormaPagamento.Credito)
+        {
+            <div class="field field--checkbox">
+                <label>
+                    <input type="checkbox" @bind="parcelado" />
+                    Compra parcelada
+                </label>
+            </div>
+
+            @if (parcelado)
+            {
+                <div class="field">
+                    <label for="totalParcelas">Número de parcelas</label>
+                    <input id="totalParcelas" type="number" min="2" max="60" step="1" @bind="totalParcelas" />
+                </div>
+            }
+        }
     }
 
     <div class="field">
@@ -79,6 +97,8 @@
     private string descricao = string.Empty;
     private int? categoriaId;
     private FormaPagamento formaPagamento = FormaPagamento.Pix;
+    private bool parcelado;
+    private int totalParcelas = 2;
     private string? mensagemErro;
     private string? mensagemSucesso;
     private List<string> alertasOrcamento = [];
@@ -90,6 +110,7 @@
     {
         tipo = novoTipo;
         categoriaId = null;
+        parcelado = false;
         mensagemSucesso = null;
         mensagemErro = null;
         await CarregarCategoriasAsync();
@@ -120,14 +141,25 @@
             return;
         }
 
+        var estaParcelando = tipo == TipoLancamento.Gasto && formaPagamento == FormaPagamento.Credito && parcelado;
+        if (estaParcelando && totalParcelas < 2)
+        {
+            mensagemErro = "Informe pelo menos 2 parcelas.";
+            return;
+        }
+
         salvando = true;
         try
         {
             if (tipo == TipoLancamento.Gasto)
             {
                 var resultado = await Api.RegistrarGastoAsync(new CriarGastoRequest(
-                    valor.Value, data, descricao, categoriaId.Value, formaPagamento, null));
-                mensagemSucesso = $"Gasto de {Formatacao.Moeda(valor.Value)} lançado.";
+                    valor.Value, data, descricao, categoriaId.Value, formaPagamento, null,
+                    estaParcelando ? totalParcelas : null));
+
+                mensagemSucesso = resultado is { TotalParcelasGeradas: > 1 }
+                    ? $"Compra parcelada em {resultado.TotalParcelasGeradas}x lançada (1ª parcela de {Formatacao.Moeda(resultado.Lancamento.Valor)})."
+                    : $"Gasto de {Formatacao.Moeda(valor.Value)} lançado.";
                 alertasOrcamento = resultado?.AlertasOrcamento.ToList() ?? [];
             }
             else
@@ -139,6 +171,7 @@
 
             valorTexto = string.Empty;
             descricao = string.Empty;
+            parcelado = false;
         }
         catch (ApiException ex)
         {

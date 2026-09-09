@@ -72,6 +72,40 @@ public class LancamentosControllerTests(GastAiApiFactory factory)
     }
 
     [Fact]
+    public async Task RegistrarGasto_Parcelado_CriaUmaParcelaPorMesEListaNosMesesCorretos()
+    {
+        var request = new CriarGastoRequest(300m, new DateOnly(2032, 1, 10), "Geladeira", CategoriaAlimentacaoId, FormaPagamento.Credito, null, TotalParcelas: 3);
+
+        var response = await Client.PostAsJsonAsync("/api/lancamentos/gastos", request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var resultado = await response.Content.ReadFromJsonAsync<RegistrarGastoResultDto>();
+        Assert.Equal(3, resultado!.TotalParcelasGeradas);
+        Assert.Equal(100m, resultado.Lancamento.Valor);
+        Assert.Equal(1, resultado.Lancamento.NumeroParcela);
+        Assert.Equal(3, resultado.Lancamento.TotalParcelas);
+        Assert.Equal("Geladeira (1/3)", resultado.Lancamento.Descricao);
+
+        var janeiro = await Client.GetFromJsonAsync<List<LancamentoDto>>("/api/lancamentos?ano=2032&mes=1");
+        var fevereiro = await Client.GetFromJsonAsync<List<LancamentoDto>>("/api/lancamentos?ano=2032&mes=2");
+        var marco = await Client.GetFromJsonAsync<List<LancamentoDto>>("/api/lancamentos?ano=2032&mes=3");
+
+        Assert.Contains(janeiro!, l => l.Descricao == "Geladeira (1/3)");
+        Assert.Contains(fevereiro!, l => l.Descricao == "Geladeira (2/3)");
+        Assert.Contains(marco!, l => l.Descricao == "Geladeira (3/3)");
+    }
+
+    [Fact]
+    public async Task RegistrarGasto_ParceladoSemCredito_RetornaBadRequest()
+    {
+        var request = new CriarGastoRequest(300m, new DateOnly(2032, 4, 10), "Geladeira", CategoriaAlimentacaoId, FormaPagamento.Pix, null, TotalParcelas: 3);
+
+        var response = await Client.PostAsJsonAsync("/api/lancamentos/gastos", request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task RegistrarReceita_Valida_RetornaOkSemFormaPagamento()
     {
         var request = new CriarReceitaRequest(3000m, new DateOnly(2031, 2, 5), "Salário", CategoriaSalarioId, null);

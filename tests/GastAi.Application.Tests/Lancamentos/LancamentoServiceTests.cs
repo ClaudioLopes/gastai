@@ -85,6 +85,59 @@ public class LancamentoServiceTests
     }
 
     [Fact]
+    public async Task RegistrarGastoAsync_ParceladoSemCredito_LancaDomainException()
+    {
+        var categoria = new Categoria("Eletrônicos", TipoLancamento.Gasto);
+        _categorias.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(categoria);
+
+        await Assert.ThrowsAsync<DomainException>(() =>
+            _service.RegistrarGastoAsync(new CriarGastoRequest(1200m, Hoje, "TV", 1, FormaPagamento.Pix, null, TotalParcelas: 12)));
+
+        _lancamentos.Verify(r => r.AddAsync(It.IsAny<Lancamento>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RegistrarGastoAsync_MaisDeSessentaParcelas_LancaDomainException()
+    {
+        var categoria = new Categoria("Eletrônicos", TipoLancamento.Gasto);
+        _categorias.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(categoria);
+
+        await Assert.ThrowsAsync<DomainException>(() =>
+            _service.RegistrarGastoAsync(new CriarGastoRequest(1200m, Hoje, "TV", 1, FormaPagamento.Credito, null, TotalParcelas: 61)));
+    }
+
+    [Fact]
+    public async Task RegistrarGastoAsync_Parcelado_CriaUmLancamentoPorMesComValoresQueSomamOTotal()
+    {
+        var categoria = new Categoria("Eletrônicos", TipoLancamento.Gasto);
+        _categorias.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(categoria);
+
+        var criados = new List<Lancamento>();
+        _lancamentos
+            .Setup(r => r.AddAsync(It.IsAny<Lancamento>(), It.IsAny<CancellationToken>()))
+            .Callback<Lancamento, CancellationToken>((l, _) => criados.Add(l))
+            .Returns(Task.CompletedTask);
+
+        var resultado = await _service.RegistrarGastoAsync(
+            new CriarGastoRequest(1000m, Hoje, "Notebook", 1, FormaPagamento.Credito, null, TotalParcelas: 3));
+
+        Assert.Equal(3, criados.Count);
+        Assert.Equal(3, resultado.TotalParcelasGeradas);
+        Assert.Equal(1000m, criados.Sum(l => l.Valor));
+
+        Assert.Equal(Hoje, criados[0].Data);
+        Assert.Equal(Hoje.AddMonths(1), criados[1].Data);
+        Assert.Equal(Hoje.AddMonths(2), criados[2].Data);
+
+        Assert.All(criados, l => Assert.Equal(criados[0].GrupoParcelamentoId, l.GrupoParcelamentoId));
+        Assert.Equal([1, 2, 3], criados.Select(l => l.NumeroParcela));
+        Assert.Equal("Notebook (1/3)", criados[0].Descricao);
+
+        Assert.Equal("Notebook (1/3)", resultado.Lancamento.Descricao);
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task RegistrarReceitaAsync_CategoriaDeGasto_LancaDomainException()
     {
         var categoriaGasto = new Categoria("Alimentação", TipoLancamento.Gasto);

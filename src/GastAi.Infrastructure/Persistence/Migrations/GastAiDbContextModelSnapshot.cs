@@ -149,11 +149,20 @@ namespace GastAi.Infrastructure.Persistence.Migrations
                     b.Property<int?>("FormaPagamento")
                         .HasColumnType("INTEGER");
 
+                    b.Property<Guid?>("GrupoParcelamentoId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("NumeroParcela")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Observacao")
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Tipo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("TotalParcelas")
                         .HasColumnType("INTEGER");
 
                     b.Property<decimal>("Valor")
@@ -164,6 +173,8 @@ namespace GastAi.Infrastructure.Persistence.Migrations
                     b.HasIndex("CategoriaId");
 
                     b.HasIndex("Data");
+
+                    b.HasIndex("GrupoParcelamentoId");
 
                     b.ToTable("Lancamentos", (string)null);
                 });

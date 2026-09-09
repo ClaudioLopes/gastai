@@ -15,6 +15,11 @@ public class Lancamento
     public FormaPagamento? FormaPagamento { get; private set; }
     public string? Observacao { get; private set; }
 
+    /// <summary>Preenchidos apenas quando o lançamento é uma parcela de uma compra parcelada no crédito.</summary>
+    public Guid? GrupoParcelamentoId { get; private set; }
+    public int? NumeroParcela { get; private set; }
+    public int? TotalParcelas { get; private set; }
+
     private Lancamento()
     {
     }
@@ -86,5 +91,19 @@ public class Lancamento
         CategoriaId = categoriaId;
         FormaPagamento = formaPagamento;
         Observacao = observacao;
+    }
+
+    /// <summary>Marca este lançamento como uma das parcelas de uma compra parcelada.</summary>
+    public void MarcarComoParcela(Guid grupoParcelamentoId, int numeroParcela, int totalParcelas)
+    {
+        if (totalParcelas < 2)
+            throw new DomainException("Uma compra parcelada precisa ter pelo menos 2 parcelas.");
+
+        if (numeroParcela < 1 || numeroParcela > totalParcelas)
+            throw new DomainException("Número da parcela inválido.");
+
+        GrupoParcelamentoId = grupoParcelamentoId;
+        NumeroParcela = numeroParcela;
+        TotalParcelas = totalParcelas;
     }
 }

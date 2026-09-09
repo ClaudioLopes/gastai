@@ -257,6 +257,21 @@ html, body {
     border-color: var(--color-primary);
 }
 
+.field--checkbox label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--color-text);
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+
+.field--checkbox input[type="checkbox"] {
+    width: 1.1rem;
+    height: 1.1rem;
+    accent-color: var(--color-primary);
+}
+
 input[type="date"]::-webkit-calendar-picker-indicator {
     filter: invert(0.8);
 }

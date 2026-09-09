@@ -11,4 +11,6 @@ public record LancamentoDto(
     int CategoriaId,
     string CategoriaNome,
     FormaPagamento? FormaPagamento,
-    string? Observacao);
+    string? Observacao,
+    int? NumeroParcela = null,
+    int? TotalParcelas = null);
