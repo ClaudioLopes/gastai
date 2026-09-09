@@ -57,7 +57,8 @@ else if (relatorio is not null)
         {
             @foreach (var item in relatorio.GastosPorCategoria)
             {
-                <div class="category-row">
+                var expandida = categoriaExpandida == item.CategoriaId;
+                <div class="category-row" style="cursor:pointer" @onclick="() => AlternarCategoria(item.CategoriaId)">
                     <span class="category-row__dot" style="background: @CorCategoria(item.CategoriaId)"></span>
                     <div style="flex:1">
                         <div style="display:flex; justify-content:space-between; font-size:0.9rem;">
@@ -68,7 +69,35 @@ else if (relatorio is not null)
                             <div class="category-row__bar-fill" style="width:@(item.Percentual)%; background:@CorCategoria(item.CategoriaId);"></div>
                         </div>
                     </div>
+                    <span class="category-row__chevron">@(expandida ? "▾" : "▸")</span>
                 </div>
+
+                @if (expandida)
+                {
+                    var lancamentosDaCategoria = LancamentosDaCategoria(item.CategoriaId);
+                    <div class="category-row__detalhes">
+                        @if (lancamentosDaCategoria.Count == 0)
+                        {
+                            <p style="font-size:0.85rem; color:var(--color-muted); margin:0.4rem 0;">Nenhum lançamento nesta categoria.</p>
+                        }
+                        else
+                        {
+                            @foreach (var lancamento in lancamentosDaCategoria)
+                            {
+                                <div class="lancamento-row lancamento-row--nested">
+                                    <div>
+                                        <div>@(string.IsNullOrWhiteSpace(lancamento.Descricao) ? "Sem descrição" : lancamento.Descricao)</div>
+                                        <div style="font-size:0.75rem; color:var(--color-muted);">@lancamento.Data.ToString("dd/MM")</div>
+                                    </div>
+                                    <div style="display:flex; align-items:center; gap:0.6rem;">
+                                        <span style="color: var(--color-danger)">-@Formatacao.Moeda(lancamento.Valor)</span>
+                                        <button class="btn-danger" title="Excluir" @onclick="() => ExcluirAsync(lancamento.Id)">✕</button>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                }
             }
         }
     </div>
@@ -107,6 +136,7 @@ else if (relatorio is not null)
     private List<LancamentoDto> lancamentos = [];
     private bool carregando;
     private string? mensagemErro;
+    private int? categoriaExpandida;
 
     private static readonly string[] Paleta =
         ["#F97316", "#3B82F6", "#8B5CF6", "#EC4899", "#EF4444", "#22C55E", "#14B8A6", "#EAB308", "#6B7280"];
@@ -168,6 +198,15 @@ else if (relatorio is not null)
     }
 
     private string CorCategoria(int categoriaId) => Paleta[categoriaId % Paleta.Length];
+
+    private void AlternarCategoria(int categoriaId)
+        => categoriaExpandida = categoriaExpandida == categoriaId ? null : categoriaId;
+
+    private List<LancamentoDto> LancamentosDaCategoria(int categoriaId) =>
+        lancamentos
+            .Where(l => l.Tipo == TipoLancamento.Gasto && l.CategoriaId == categoriaId)
+            .OrderByDescending(l => l.Data)
+            .ToList();
 
     private static string NomeMes(int mes) => new DateTime(2000, mes, 1).ToString("MMMM", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"));
 }
