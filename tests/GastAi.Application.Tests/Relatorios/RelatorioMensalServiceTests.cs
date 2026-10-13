@@ -37,6 +37,8 @@ public class RelatorioMensalServiceTests
         var alimentacao = new Categoria("Alimentação", TipoLancamento.Gasto);
         var transporte = new Categoria("Transporte", TipoLancamento.Gasto);
         var salario = new Categoria("Salário", TipoLancamento.Receita);
+        EntidadeTestHelpers.DefinirId(alimentacao, 1);
+        EntidadeTestHelpers.DefinirId(transporte, 2);
         var data = new DateOnly(2026, 9, 10);
 
         _lancamentos.Setup(r => r.GetByMesAsync(2026, 9, It.IsAny<CancellationToken>())).ReturnsAsync(
@@ -91,6 +93,43 @@ public class RelatorioMensalServiceTests
         Assert.True(relatorio.ComparacaoMesAnterior.ExisteDadosMesAnterior);
         Assert.Equal(100m, relatorio.ComparacaoMesAnterior.TotalGastosMesAnterior);
         Assert.Equal(50m, relatorio.ComparacaoMesAnterior.VariacaoPercentualGastos);
+    }
+
+    [Fact]
+    public async Task GerarAsync_ComparaCadaCategoriaComOMesAnterior_InclusiveAsQueZeraramEAsNovas()
+    {
+        var alimentacao = new Categoria("Alimentação", TipoLancamento.Gasto);
+        var transporte = new Categoria("Transporte", TipoLancamento.Gasto);
+        var lazer = new Categoria("Lazer", TipoLancamento.Gasto);
+        EntidadeTestHelpers.DefinirId(alimentacao, 1);
+        EntidadeTestHelpers.DefinirId(transporte, 2);
+        EntidadeTestHelpers.DefinirId(lazer, 3);
+
+        _lancamentos.Setup(r => r.GetByMesAsync(2026, 9, It.IsAny<CancellationToken>())).ReturnsAsync(
+        [
+            Gasto(150m, alimentacao, new DateOnly(2026, 9, 10)),
+            Gasto(40m, lazer, new DateOnly(2026, 9, 11)),
+        ]);
+        _lancamentos.Setup(r => r.GetByMesAsync(2026, 8, It.IsAny<CancellationToken>())).ReturnsAsync(
+        [
+            Gasto(100m, alimentacao, new DateOnly(2026, 8, 10)),
+            Gasto(60m, transporte, new DateOnly(2026, 8, 12)),
+        ]);
+
+        var relatorio = await _service.GerarAsync(2026, 9);
+
+        var alimentacaoDto = relatorio.GastosPorCategoria.Single(g => g.CategoriaNome == "Alimentação");
+        Assert.Equal(100m, alimentacaoDto.ValorMesAnterior);
+        Assert.Equal(50m, alimentacaoDto.VariacaoPercentual);
+
+        var lazerDto = relatorio.GastosPorCategoria.Single(g => g.CategoriaNome == "Lazer");
+        Assert.Equal(0m, lazerDto.ValorMesAnterior);
+        Assert.Null(lazerDto.VariacaoPercentual);
+
+        var transporteDto = relatorio.GastosPorCategoria.Single(g => g.CategoriaNome == "Transporte");
+        Assert.Equal(0m, transporteDto.Valor);
+        Assert.Equal(60m, transporteDto.ValorMesAnterior);
+        Assert.Equal(-100m, transporteDto.VariacaoPercentual);
     }
 
     [Fact]

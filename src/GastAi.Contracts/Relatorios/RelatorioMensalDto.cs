@@ -13,7 +13,9 @@ public record GastoPorCategoriaDto(
     int CategoriaId,
     string CategoriaNome,
     decimal Valor,
-    decimal Percentual);
+    decimal Percentual,
+    decimal ValorMesAnterior,
+    decimal? VariacaoPercentual);
 
 public record ComparacaoMesAnteriorDto(
     bool ExisteDadosMesAnterior,

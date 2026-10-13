@@ -68,6 +68,12 @@ else if (relatorio is not null)
                         <div class="category-row__bar-track">
                             <div class="category-row__bar-fill" style="width:@(item.Percentual)%; background:@CorCategoria(item.CategoriaId);"></div>
                         </div>
+                        @if (relatorio.ComparacaoMesAnterior.ExisteDadosMesAnterior)
+                        {
+                            <div class="variacao @ClasseVariacao(item.Valor, item.ValorMesAnterior)">
+                                @TextoVariacaoCategoria(item)
+                            </div>
+                        }
                     </div>
                     <span class="category-row__chevron">@(expandida ? "▾" : "▸")</span>
                 </div>
@@ -98,6 +104,50 @@ else if (relatorio is not null)
                         }
                     </div>
                 }
+            }
+        }
+    </div>
+
+    <div class="card">
+        <strong>Contas que se repetem</strong>
+        <p style="font-size:0.8rem; color:var(--color-muted); margin:0.2rem 0 0.8rem;">
+            Gastos com a mesma categoria e descrição em pelo menos 2 dos últimos 6 meses (ex.: conta de luz).
+        </p>
+        @if (recorrentes.Count == 0)
+        {
+            <p>Ainda não há gastos repetidos. Use sempre a mesma descrição (ex.: "Conta de luz") para acompanhar a evolução.</p>
+        }
+        else
+        {
+            @foreach (var r in recorrentes)
+            {
+                var maximo = r.Serie.Max(s => s.Valor);
+                <div class="recorrente">
+                    <div style="display:flex; justify-content:space-between; gap:0.6rem;">
+                        <div>
+                            <div>@r.Descricao</div>
+                            <div style="font-size:0.75rem; color:var(--color-muted);">@r.CategoriaNome</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div>@(r.ValorAtual is null ? "—" : Formatacao.Moeda(r.ValorAtual.Value))</div>
+                            <div class="variacao @ClasseTendencia(r.Tendencia)">@TextoTendencia(r)</div>
+                        </div>
+                    </div>
+                    <div class="recorrente__grafico">
+                        @foreach (var ponto in r.Serie)
+                        {
+                            var altura = maximo == 0 ? 0 : Math.Max(4, (int)Math.Round(ponto.Valor / maximo * 100));
+                            var atual = ponto.Ano == ano && ponto.Mes == mes;
+                            <div class="recorrente__coluna" title="@NomeMesCurto(ponto.Mes)/@ponto.Ano: @Formatacao.Moeda(ponto.Valor)">
+                                <div class="recorrente__trilho">
+                                    <div class="recorrente__barra @(atual ? "recorrente__barra--atual" : "")"
+                                         style="height:@(ponto.Valor == 0 ? 0 : altura)%"></div>
+                                </div>
+                                <span class="recorrente__mes">@NomeMesCurto(ponto.Mes)</span>
+                            </div>
+                        }
+                    </div>
+                </div>
             }
         }
     </div>
@@ -134,6 +184,7 @@ else if (relatorio is not null)
     private int mes;
     private RelatorioMensalDto? relatorio;
     private List<LancamentoDto> lancamentos = [];
+    private List<GastoRecorrenteDto> recorrentes = [];
     private bool carregando;
     private string? mensagemErro;
     private int? categoriaExpandida;
@@ -157,6 +208,7 @@ else if (relatorio is not null)
         {
             relatorio = await Api.GetRelatorioMensalAsync(ano, mes);
             lancamentos = await Api.GetLancamentosAsync(ano, mes);
+            recorrentes = await Api.GetGastosRecorrentesAsync(ano, mes);
         }
         catch (ApiException ex)
         {
@@ -207,6 +259,44 @@ else if (relatorio is not null)
             .Where(l => l.Tipo == TipoLancamento.Gasto && l.CategoriaId == categoriaId)
             .OrderByDescending(l => l.Data)
             .ToList();
+
+    // Para gasto, subir é ruim (vermelho) e cair é bom (verde).
+    private static string ClasseVariacao(decimal atual, decimal anterior)
+        => atual > anterior ? "variacao--sobe" : atual < anterior ? "variacao--cai" : "";
+
+    private static string TextoVariacaoCategoria(GastoPorCategoriaDto item)
+    {
+        if (item.ValorMesAnterior == 0)
+            return "Novo: sem gasto no mês anterior";
+
+        if (item.Valor == 0)
+            return $"▼ Sem gastos (mês anterior: {Formatacao.Moeda(item.ValorMesAnterior)})";
+
+        var seta = item.Valor > item.ValorMesAnterior ? "▲" : item.Valor < item.ValorMesAnterior ? "▼" : "=";
+        return $"{seta} {Formatacao.Percentual(item.VariacaoPercentual)} (mês anterior: {Formatacao.Moeda(item.ValorMesAnterior)})";
+    }
+
+    private static string ClasseTendencia(TendenciaGasto tendencia) => tendencia switch
+    {
+        TendenciaGasto.Subindo => "variacao--sobe",
+        TendenciaGasto.Caindo => "variacao--cai",
+        _ => ""
+    };
+
+    private static string TextoTendencia(GastoRecorrenteDto r)
+    {
+        if (r.ValorAtual is null)
+            return "Não lançado neste mês";
+
+        if (r.VariacaoPercentual is null)
+            return "Sem mês anterior para comparar";
+
+        var seta = r.Tendencia switch { TendenciaGasto.Subindo => "▲", TendenciaGasto.Caindo => "▼", _ => "=" };
+        return $"{seta} {Formatacao.Percentual(r.VariacaoPercentual)} vs {Formatacao.Moeda(r.ValorAnterior!.Value)}";
+    }
+
+    private static string NomeMesCurto(int mes)
+        => new DateTime(2000, mes, 1).ToString("MMM", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"));
 
     private static string NomeMes(int mes) => new DateTime(2000, mes, 1).ToString("MMMM", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"));
 }

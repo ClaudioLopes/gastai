@@ -42,6 +42,27 @@ public class RelatoriosControllerTests(GastAiApiFactory factory)
     }
 
     [Fact]
+    public async Task Recorrentes_GastoComMesmaDescricaoEmDoisMeses_RetornaComVariacao()
+    {
+        await Client.PostAsJsonAsync("/api/lancamentos/gastos",
+            new CriarGastoRequest(100m, new DateOnly(2034, 7, 10), "Conta de luz", CategoriaAlimentacaoId, FormaPagamento.Pix, null));
+        await Client.PostAsJsonAsync("/api/lancamentos/gastos",
+            new CriarGastoRequest(125m, new DateOnly(2034, 8, 10), "conta de luz", CategoriaAlimentacaoId, FormaPagamento.Pix, null));
+        await Client.PostAsJsonAsync("/api/lancamentos/gastos",
+            new CriarGastoRequest(30m, new DateOnly(2034, 8, 12), "Almoço único", CategoriaAlimentacaoId, FormaPagamento.Pix, null));
+
+        var recorrentes = await Client.GetFromJsonAsync<List<GastoRecorrenteDto>>("/api/relatorios/recorrentes?ano=2034&mes=8");
+
+        Assert.NotNull(recorrentes);
+        var luz = Assert.Single(recorrentes!);
+        Assert.Equal(125m, luz.ValorAtual);
+        Assert.Equal(100m, luz.ValorAnterior);
+        Assert.Equal(25m, luz.VariacaoPercentual);
+        Assert.Equal(TendenciaGasto.Subindo, luz.Tendencia);
+        Assert.Equal(6, luz.Serie.Count);
+    }
+
+    [Fact]
     public async Task Mensal_SemLancamentos_RetornaTotaisZeradosESemComparacao()
     {
         var relatorio = await Client.GetFromJsonAsync<RelatorioMensalDto>("/api/relatorios/mensal?ano=2033&mes=1");

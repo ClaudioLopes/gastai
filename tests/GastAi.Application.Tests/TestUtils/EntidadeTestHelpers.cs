@@ -9,6 +9,12 @@ namespace GastAi.Application.Tests.TestUtils;
 /// </summary>
 public static class EntidadeTestHelpers
 {
+    public static void DefinirId(Categoria categoria, int id)
+    {
+        typeof(Categoria).GetProperty(nameof(Categoria.Id), BindingFlags.Public | BindingFlags.Instance)!
+            .SetValue(categoria, id);
+    }
+
     public static void AnexarCategoria(Lancamento lancamento, Categoria categoria)
     {
         typeof(Lancamento).GetProperty(nameof(Lancamento.Categoria), BindingFlags.Public | BindingFlags.Instance)!

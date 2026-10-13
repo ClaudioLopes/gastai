@@ -49,6 +49,9 @@ public class ApiClient(HttpClient http)
     public async Task<RelatorioMensalDto?> GetRelatorioMensalAsync(int ano, int mes)
         => await http.GetFromJsonAsync<RelatorioMensalDto>($"api/relatorios/mensal?ano={ano}&mes={mes}");
 
+    public async Task<List<GastoRecorrenteDto>> GetGastosRecorrentesAsync(int ano, int mes)
+        => await http.GetFromJsonAsync<List<GastoRecorrenteDto>>($"api/relatorios/recorrentes?ano={ano}&mes={mes}") ?? [];
+
     public async Task<List<OrcamentoMensalDto>> GetOrcamentosAsync(int ano, int mes)
         => await http.GetFromJsonAsync<List<OrcamentoMensalDto>>($"api/orcamentos?ano={ano}&mes={mes}") ?? [];
 
