@@ -4,6 +4,38 @@
 
 <PageTitle>Lançar</PageTitle>
 
+@if (aConfirmar.Count > 0)
+{
+    <div class="card">
+        <strong>Compras para confirmar (@aConfirmar.Count)</strong>
+        <p style="font-size:0.8rem; color:var(--color-muted); margin:0.2rem 0 0.8rem;">
+            Registradas automaticamente. Já entram nos totais; confira a categoria e confirme.
+        </p>
+        @foreach (var compra in aConfirmar)
+        {
+            <div class="pendente">
+                <div style="display:flex; justify-content:space-between; gap:0.6rem;">
+                    <div>
+                        <div>@compra.Descricao</div>
+                        <div style="font-size:0.75rem; color:var(--color-muted);">@compra.Data.ToString("dd/MM") · @compra.FormaPagamento</div>
+                    </div>
+                    <div style="color:var(--color-danger);">-@Formatacao.Moeda(compra.Valor)</div>
+                </div>
+                <div class="pendente__acoes">
+                    <select value="@CategoriaEscolhida(compra)" @onchange="e => EscolherCategoria(compra.Id, e.Value)">
+                        @foreach (var categoria in categoriasGasto)
+                        {
+                            <option value="@categoria.Id">@categoria.Nome</option>
+                        }
+                    </select>
+                    <button type="button" class="btn-primary" @onclick="() => ConfirmarCompraAsync(compra)">Confirmar</button>
+                    <button type="button" class="btn-danger" title="Excluir" @onclick="() => ExcluirCompraAsync(compra.Id)">✕</button>
+                </div>
+            </div>
+        }
+    </div>
+}
+
 <div class="tabs">
     <button class="tab-button @(tipo == TipoLancamento.Gasto ? "active" : "")" @onclick="() => MudarTipoAsync(TipoLancamento.Gasto)">
         Gasto
@@ -103,8 +135,72 @@
     private string? mensagemSucesso;
     private List<string> alertasOrcamento = [];
     private bool salvando;
+    private List<LancamentoDto> aConfirmar = [];
+    private List<CategoriaDto> categoriasGasto = [];
+    private readonly Dictionary<int, int> categoriaEscolhida = [];
 
-    protected override Task OnInitializedAsync() => CarregarCategoriasAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarCategoriasAsync();
+        await CarregarAConfirmarAsync();
+    }
+
+    private async Task CarregarAConfirmarAsync()
+    {
+        try
+        {
+            aConfirmar = await Api.GetLancamentosAConfirmarAsync();
+            categoriasGasto = aConfirmar.Count == 0 ? [] : await Api.GetCategoriasAsync(TipoLancamento.Gasto);
+        }
+        catch (ApiException ex)
+        {
+            mensagemErro = ex.Message;
+        }
+    }
+
+    private int CategoriaEscolhida(LancamentoDto compra)
+        => categoriaEscolhida.GetValueOrDefault(compra.Id, compra.CategoriaId);
+
+    private void EscolherCategoria(int id, object? valor)
+    {
+        if (int.TryParse(valor?.ToString(), out var categoria))
+            categoriaEscolhida[id] = categoria;
+    }
+
+    private async Task ConfirmarCompraAsync(LancamentoDto compra)
+    {
+        mensagemErro = null;
+        try
+        {
+            var escolhida = CategoriaEscolhida(compra);
+
+            if (escolhida == compra.CategoriaId)
+                await Api.ConfirmarLancamentoAsync(compra.Id);
+            else
+                await Api.AtualizarLancamentoAsync(compra.Id, new AtualizarLancamentoRequest(
+                    compra.Valor, compra.Data, compra.Descricao, escolhida, compra.FormaPagamento, compra.Observacao));
+
+            await CarregarAConfirmarAsync();
+        }
+        catch (ApiException ex)
+        {
+            mensagemErro = ex.Message;
+        }
+    }
+
+    private async Task ExcluirCompraAsync(int id)
+    {
+        mensagemErro = null;
+        try
+        {
+            await Api.ExcluirLancamentoAsync(id);
+            await CarregarAConfirmarAsync();
+        }
+        catch (ApiException ex)
+        {
+            mensagemErro = ex.Message;
+        }
+    }
 
     private async Task MudarTipoAsync(TipoLancamento novoTipo)
     {

@@ -13,4 +13,5 @@ public record LancamentoDto(
     FormaPagamento? FormaPagamento,
     string? Observacao,
     int? NumeroParcela = null,
-    int? TotalParcelas = null);
+    int? TotalParcelas = null,
+    bool AConfirmar = false);

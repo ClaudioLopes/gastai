@@ -122,6 +122,28 @@ public class LancamentoService(
             .ToList();
     }
 
+    public async Task<List<LancamentoDto>> ListarAConfirmarAsync(CancellationToken ct = default)
+    {
+        var lista = await lancamentos.GetAConfirmarAsync(ct);
+
+        return lista
+            .OrderByDescending(l => l.Data)
+            .ThenByDescending(l => l.Id)
+            .Select(l => ParaDto(l, l.Categoria!))
+            .ToList();
+    }
+
+    public async Task<LancamentoDto> ConfirmarAsync(int id, CancellationToken ct = default)
+    {
+        var lancamento = await lancamentos.GetByIdAsync(id, ct)
+            ?? throw new NotFoundException($"Lançamento {id} não encontrado.");
+
+        lancamento.Confirmar();
+        await unitOfWork.SaveChangesAsync(ct);
+
+        return ParaDto(lancamento, lancamento.Categoria!);
+    }
+
     private async Task<Domain.Entities.Categoria> ObterCategoriaValidaAsync(int categoriaId, TipoLancamento tipoEsperado, CancellationToken ct)
     {
         var categoria = await categorias.GetByIdAsync(categoriaId, ct)
@@ -135,5 +157,5 @@ public class LancamentoService(
 
     private static LancamentoDto ParaDto(Lancamento l, Domain.Entities.Categoria categoria)
         => new(l.Id, l.Tipo, l.Valor, l.Data, l.Descricao, l.CategoriaId, categoria.Nome, l.FormaPagamento, l.Observacao,
-            l.NumeroParcela, l.TotalParcelas);
+            l.NumeroParcela, l.TotalParcelas, l.AConfirmar);
 }

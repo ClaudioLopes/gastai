@@ -22,6 +22,53 @@ public class LancamentoTests
     }
 
     [Fact]
+    public void NovoGasto_Manual_NaoNasceAConfirmar()
+    {
+        var lancamento = Lancamento.NovoGasto(10m, Hoje, "x", 1, FormaPagamento.Pix);
+
+        Assert.False(lancamento.AConfirmar);
+    }
+
+    [Fact]
+    public void NovoGastoAutomatico_NasceAConfirmar()
+    {
+        var lancamento = Lancamento.NovoGastoAutomatico(10m, Hoje, "Padaria", 1, FormaPagamento.Credito);
+
+        Assert.True(lancamento.AConfirmar);
+        Assert.Equal(TipoLancamento.Gasto, lancamento.Tipo);
+    }
+
+    [Fact]
+    public void NovoGastoAutomatico_ValorNaoPositivo_Lanca()
+    {
+        Assert.Throws<DomainException>(
+            () => Lancamento.NovoGastoAutomatico(0m, Hoje, "x", 1, FormaPagamento.Credito));
+    }
+
+    [Fact]
+    public void Confirmar_LimpaAConfirmarSemAlterarOsDados()
+    {
+        var lancamento = Lancamento.NovoGastoAutomatico(10m, Hoje, "Padaria", 1, FormaPagamento.Credito);
+
+        lancamento.Confirmar();
+
+        Assert.False(lancamento.AConfirmar);
+        Assert.Equal(10m, lancamento.Valor);
+        Assert.Equal("Padaria", lancamento.Descricao);
+    }
+
+    [Fact]
+    public void Atualizar_EmCompraAutomatica_ContaComoRevisaoELimpaAConfirmar()
+    {
+        var lancamento = Lancamento.NovoGastoAutomatico(10m, Hoje, "Padaria", 1, FormaPagamento.Credito);
+
+        lancamento.Atualizar(10m, Hoje, "Padaria", 2, FormaPagamento.Credito, null);
+
+        Assert.False(lancamento.AConfirmar);
+        Assert.Equal(2, lancamento.CategoriaId);
+    }
+
+    [Fact]
     public void NovaReceita_ComDadosValidos_CriaSemFormaPagamento()
     {
         var lancamento = Lancamento.NovaReceita(3000m, Hoje, "Salário", categoriaId: 7);

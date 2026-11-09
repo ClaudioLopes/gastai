@@ -78,3 +78,18 @@ flyctl secrets set -a gastai "Auth__OwnerEmail=..." "Auth__OwnerPassword=..."
 ```
 
 (Só têm efeito antes do primeiro usuário ser criado — depois disso, trocar a senha exige apagar o usuário direto no banco.)
+
+### Compras automáticas (Atalhos do iPhone)
+
+`POST /api/integracoes/compras` registra um gasto "a confirmar" sem usar o cookie de login: a automação
+se identifica com o cabeçalho `X-Api-Key`, que precisa bater com `Integracoes:ChaveApi`. Sem essa chave
+configurada, o endpoint responde 401 sempre (desligado). Em produção é um secret do Fly:
+
+```bash
+flyctl secrets set -a gastai "Integracoes__ChaveApi=<chave-longa-e-aleatoria>"
+```
+
+Corpo JSON: só `valor` é obrigatório (número ou texto, ex.: `"R$ 45,90"`). Opcionais: `estabelecimento`,
+`data` (`yyyy-MM-dd`; sem ela vale hoje no horário de Brasília), `cartao` e `formaPagamento` (padrão: crédito).
+A categoria é a da última compra revisada com o mesmo estabelecimento; sem histórico, "Outros". As compras
+aparecem em "Compras para confirmar" na tela Lançar e já entram nos totais.

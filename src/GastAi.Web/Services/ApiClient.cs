@@ -43,6 +43,15 @@ public class ApiClient(HttpClient http)
     public Task<LancamentoDto?> RegistrarReceitaAsync(CriarReceitaRequest request)
         => PostAsync<CriarReceitaRequest, LancamentoDto>("api/lancamentos/receitas", request);
 
+    public async Task<List<LancamentoDto>> GetLancamentosAConfirmarAsync()
+        => await http.GetFromJsonAsync<List<LancamentoDto>>("api/lancamentos/a-confirmar") ?? [];
+
+    public Task<LancamentoDto?> ConfirmarLancamentoAsync(int id)
+        => PostAsync<object, LancamentoDto>($"api/lancamentos/{id}/confirmar", new { });
+
+    public Task<LancamentoDto?> AtualizarLancamentoAsync(int id, AtualizarLancamentoRequest request)
+        => PutAsync<AtualizarLancamentoRequest, LancamentoDto>($"api/lancamentos/{id}", request);
+
     public Task ExcluirLancamentoAsync(int id)
         => SendAsync(HttpMethod.Delete, $"api/lancamentos/{id}");
 

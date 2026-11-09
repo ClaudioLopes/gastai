@@ -20,6 +20,12 @@ public class Lancamento
     public int? NumeroParcela { get; private set; }
     public int? TotalParcelas { get; private set; }
 
+    /// <summary>
+    /// Verdadeiro para compras registradas automaticamente (ex.: Atalhos do iPhone) que o
+    /// usuário ainda não revisou. Entram normalmente nos totais; só aparecem em destaque para conferência.
+    /// </summary>
+    public bool AConfirmar { get; private set; }
+
     private Lancamento()
     {
     }
@@ -60,6 +66,20 @@ public class Lancamento
         string? observacao = null)
         => new(TipoLancamento.Gasto, valor, data, descricao, categoriaId, formaPagamento, observacao);
 
+    /// <summary>Gasto vindo de uma integração: nasce marcado como "a confirmar" até o usuário revisar.</summary>
+    public static Lancamento NovoGastoAutomatico(
+        decimal valor,
+        DateOnly data,
+        string descricao,
+        int categoriaId,
+        FormaPagamento formaPagamento,
+        string? observacao = null)
+    {
+        var lancamento = NovoGasto(valor, data, descricao, categoriaId, formaPagamento, observacao);
+        lancamento.AConfirmar = true;
+        return lancamento;
+    }
+
     public static Lancamento NovaReceita(
         decimal valor,
         DateOnly data,
@@ -91,7 +111,13 @@ public class Lancamento
         CategoriaId = categoriaId;
         FormaPagamento = formaPagamento;
         Observacao = observacao;
+
+        // Editar já é uma revisão: o usuário viu e ajustou o lançamento.
+        AConfirmar = false;
     }
+
+    /// <summary>Marca a compra automática como revisada, sem alterar seus dados.</summary>
+    public void Confirmar() => AConfirmar = false;
 
     /// <summary>Marca este lançamento como uma das parcelas de uma compra parcelada.</summary>
     public void MarcarComoParcela(Guid grupoParcelamentoId, int numeroParcela, int totalParcelas)

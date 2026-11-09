@@ -135,6 +135,9 @@ namespace GastAi.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("AConfirmar")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("CategoriaId")
                         .HasColumnType("INTEGER");
 

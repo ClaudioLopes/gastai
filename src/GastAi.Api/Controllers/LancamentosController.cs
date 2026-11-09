@@ -13,6 +13,14 @@ public class LancamentosController(ILancamentoService lancamentoService) : Contr
         [FromQuery] int ano, [FromQuery] int mes, CancellationToken ct)
         => Ok(await lancamentoService.ListarPorMesAsync(ano, mes, ct));
 
+    [HttpGet("a-confirmar")]
+    public async Task<ActionResult<List<LancamentoDto>>> ListarAConfirmar(CancellationToken ct)
+        => Ok(await lancamentoService.ListarAConfirmarAsync(ct));
+
+    [HttpPost("{id:int}/confirmar")]
+    public async Task<ActionResult<LancamentoDto>> Confirmar(int id, CancellationToken ct)
+        => Ok(await lancamentoService.ConfirmarAsync(id, ct));
+
     [HttpPost("gastos")]
     public async Task<ActionResult<RegistrarGastoResultDto>> RegistrarGasto(CriarGastoRequest request, CancellationToken ct)
         => Ok(await lancamentoService.RegistrarGastoAsync(request, ct));

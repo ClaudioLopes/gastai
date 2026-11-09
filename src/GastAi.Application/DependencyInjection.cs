@@ -3,6 +3,7 @@ using GastAi.Application.Lancamentos;
 using GastAi.Application.Orcamentos;
 using GastAi.Application.Relatorios;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace GastAi.Application;
 
@@ -12,6 +13,8 @@ public static class DependencyInjection
     {
         services.AddScoped<ICategoriaService, CategoriaService>();
         services.AddScoped<ILancamentoService, LancamentoService>();
+        services.AddScoped<ICompraAutomaticaService, CompraAutomaticaService>();
+        services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<IRelatorioMensalService, RelatorioMensalService>();
         services.AddScoped<IGastosRecorrentesService, GastosRecorrentesService>();
         services.AddScoped<IOrcamentoService, OrcamentoService>();
