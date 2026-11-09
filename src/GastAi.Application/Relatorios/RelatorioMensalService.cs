@@ -64,10 +64,50 @@ public class RelatorioMensalService(ILancamentoRepository lancamentos) : IRelato
                     valor,
                     totalGastos == 0 ? 0 : Math.Round(valor / totalGastos * 100, 2),
                     valorAnterior,
-                    VariacaoPercentual(valorAnterior, valor));
+                    VariacaoPercentual(valorAnterior, valor),
+                    DetalharPorDescricao(id, doMes, doMesAnterior));
             })
             .OrderByDescending(g => g.Valor)
             .ThenByDescending(g => g.ValorMesAnterior)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Agrupa os gastos da categoria por descrição (sem diferenciar maiúsculas/espaços) nos dois meses.
+    /// Ordena do que mais subiu para o que mais caiu, para que a causa da alta apareça primeiro.
+    /// </summary>
+    private static List<VariacaoPorDescricaoDto> DetalharPorDescricao(
+        int categoriaId, List<Lancamento> doMes, List<Lancamento> doMesAnterior)
+    {
+        const string SemDescricao = "Sem descrição";
+
+        static string Chave(Lancamento l) => (l.Descricao ?? "").Trim().ToLowerInvariant();
+
+        static Dictionary<string, (string Nome, decimal Valor)> Agrupar(List<Lancamento> lista, int categoriaId)
+            => lista
+                .Where(l => l.Tipo == TipoLancamento.Gasto && l.Categoria?.Id == categoriaId)
+                .GroupBy(Chave)
+                .ToDictionary(
+                    g => g.Key,
+                    g => (Nome: (g.First().Descricao ?? "").Trim(), Valor: g.Sum(l => l.Valor)));
+
+        var atuais = Agrupar(doMes, categoriaId);
+        var anteriores = Agrupar(doMesAnterior, categoriaId);
+
+        return atuais.Keys.Union(anteriores.Keys)
+            .Select(chave =>
+            {
+                var temAtual = atuais.TryGetValue(chave, out var a);
+                var temAnterior = anteriores.TryGetValue(chave, out var p);
+                var nome = temAtual ? a.Nome : p.Nome;
+
+                return new VariacaoPorDescricaoDto(
+                    string.IsNullOrEmpty(nome) ? SemDescricao : nome,
+                    temAtual ? a.Valor : 0m,
+                    temAnterior ? p.Valor : 0m);
+            })
+            .OrderByDescending(d => d.Diferenca)
+            .ThenBy(d => d.Descricao)
             .ToList();
     }
 

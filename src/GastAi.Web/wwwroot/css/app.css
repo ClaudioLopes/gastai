@@ -548,6 +548,39 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     margin-top: 0.2rem;
 }
 
+.mudancas {
+    margin-bottom: 0.6rem;
+}
+
+.mudancas__titulo {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--color-muted);
+    margin: 0.5rem 0 0.2rem;
+}
+
+.mudancas__linha {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.6rem;
+    padding: 0.35rem 0;
+    font-size: 0.9rem;
+}
+
+.mudancas__valores {
+    font-size: 0.75rem;
+    color: var(--color-muted);
+}
+
+.mudancas__diferenca {
+    margin-top: 0;
+    white-space: nowrap;
+    font-weight: 600;
+}
+
 .variacao--sobe {
     color: var(--color-danger);
 }

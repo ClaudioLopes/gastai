@@ -24,6 +24,13 @@ public class RelatorioMensalServiceTests
         return lancamento;
     }
 
+    private static Lancamento Gasto(decimal valor, Categoria categoria, DateOnly data, string descricao)
+    {
+        var lancamento = Lancamento.NovoGasto(valor, data, descricao, 1, FormaPagamento.Pix);
+        EntidadeTestHelpers.AnexarCategoria(lancamento, categoria);
+        return lancamento;
+    }
+
     private static Lancamento Receita(decimal valor, Categoria categoria, DateOnly data)
     {
         var lancamento = Lancamento.NovaReceita(valor, data, "x", 7);
@@ -130,6 +137,66 @@ public class RelatorioMensalServiceTests
         Assert.Equal(0m, transporteDto.Valor);
         Assert.Equal(60m, transporteDto.ValorMesAnterior);
         Assert.Equal(-100m, transporteDto.VariacaoPercentual);
+    }
+
+    [Fact]
+    public async Task GerarAsync_DetalhaACategoriaPorDescricao_MostrandoOQueExplicaAAlta()
+    {
+        var alimentacao = new Categoria("Alimentação", TipoLancamento.Gasto);
+        var transporte = new Categoria("Transporte", TipoLancamento.Gasto);
+        EntidadeTestHelpers.DefinirId(alimentacao, 1);
+        EntidadeTestHelpers.DefinirId(transporte, 2);
+
+        _lancamentos.Setup(r => r.GetByMesAsync(2026, 9, It.IsAny<CancellationToken>())).ReturnsAsync(
+        [
+            Gasto(300m, alimentacao, new DateOnly(2026, 9, 3), "Mercado"),
+            Gasto(120m, alimentacao, new DateOnly(2026, 9, 10), "mercado "), // mesma descrição, outro formato
+            Gasto(80m, alimentacao, new DateOnly(2026, 9, 12), "Restaurante X"), // novo
+            Gasto(50m, alimentacao, new DateOnly(2026, 9, 15), "Padaria"),
+            Gasto(999m, transporte, new DateOnly(2026, 9, 15), "Uber"), // outra categoria: não entra
+        ]);
+        _lancamentos.Setup(r => r.GetByMesAsync(2026, 8, It.IsAny<CancellationToken>())).ReturnsAsync(
+        [
+            Gasto(250m, alimentacao, new DateOnly(2026, 8, 5), "Mercado"),
+            Gasto(70m, alimentacao, new DateOnly(2026, 8, 9), "Padaria"),
+            Gasto(60m, alimentacao, new DateOnly(2026, 8, 20), "Delivery"), // não repetiu neste mês
+        ]);
+
+        var relatorio = await _service.GerarAsync(2026, 9);
+
+        var detalhes = relatorio.GastosPorCategoria.Single(g => g.CategoriaNome == "Alimentação").Detalhes!;
+
+        // Do que mais subiu para o que mais caiu.
+        Assert.Equal(["Mercado", "Restaurante X", "Padaria", "Delivery"], detalhes.Select(d => d.Descricao));
+
+        var mercado = detalhes[0];
+        Assert.Equal(420m, mercado.Valor);
+        Assert.Equal(250m, mercado.ValorMesAnterior);
+        Assert.Equal(170m, mercado.Diferenca);
+
+        var delivery = detalhes.Single(d => d.Descricao == "Delivery");
+        Assert.Equal(0m, delivery.Valor);
+        Assert.Equal(-60m, delivery.Diferenca);
+
+        Assert.DoesNotContain(detalhes, d => d.Descricao == "Uber");
+    }
+
+    [Fact]
+    public async Task GerarAsync_GastoSemDescricao_AparecemAgrupadosComoSemDescricao()
+    {
+        var alimentacao = new Categoria("Alimentação", TipoLancamento.Gasto);
+        EntidadeTestHelpers.DefinirId(alimentacao, 1);
+
+        _lancamentos.Setup(r => r.GetByMesAsync(2026, 9, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([Gasto(30m, alimentacao, new DateOnly(2026, 9, 3), "")]);
+        _lancamentos.Setup(r => r.GetByMesAsync(2026, 8, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([Gasto(10m, alimentacao, new DateOnly(2026, 8, 3), "")]);
+
+        var relatorio = await _service.GerarAsync(2026, 9);
+
+        var detalhe = Assert.Single(relatorio.GastosPorCategoria.Single().Detalhes!);
+        Assert.Equal("Sem descrição", detalhe.Descricao);
+        Assert.Equal(20m, detalhe.Diferenca);
     }
 
     [Fact]

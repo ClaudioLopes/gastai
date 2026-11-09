@@ -82,6 +82,26 @@ else if (relatorio is not null)
                 {
                     var lancamentosDaCategoria = LancamentosDaCategoria(item.CategoriaId);
                     <div class="category-row__detalhes">
+                        @if (relatorio.ComparacaoMesAnterior.ExisteDadosMesAnterior && item.Detalhes is { Count: > 0 })
+                        {
+                            <div class="mudancas">
+                                <div class="mudancas__titulo">O que mudou em relação ao mês anterior</div>
+                                @foreach (var d in item.Detalhes)
+                                {
+                                    <div class="mudancas__linha">
+                                        <div>
+                                            <div>@d.Descricao</div>
+                                            <div class="mudancas__valores">@TextoValoresDetalhe(d)</div>
+                                        </div>
+                                        <div class="mudancas__diferenca @ClasseVariacao(d.Valor, d.ValorMesAnterior)">
+                                            @TextoDiferenca(d.Diferenca)
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                            <div class="mudancas__titulo">Lançamentos deste mês</div>
+                        }
+
                         @if (lancamentosDaCategoria.Count == 0)
                         {
                             <p style="font-size:0.85rem; color:var(--color-muted); margin:0.4rem 0;">Nenhum lançamento nesta categoria.</p>
@@ -275,6 +295,20 @@ else if (relatorio is not null)
         var seta = item.Valor > item.ValorMesAnterior ? "▲" : item.Valor < item.ValorMesAnterior ? "▼" : "=";
         return $"{seta} {Formatacao.Percentual(item.VariacaoPercentual)} (mês anterior: {Formatacao.Moeda(item.ValorMesAnterior)})";
     }
+
+    private static string TextoValoresDetalhe(VariacaoPorDescricaoDto d)
+    {
+        if (d.ValorMesAnterior == 0)
+            return $"{Formatacao.Moeda(d.Valor)} — novo, sem gasto igual no mês anterior";
+
+        if (d.Valor == 0)
+            return $"Não houve neste mês (mês anterior: {Formatacao.Moeda(d.ValorMesAnterior)})";
+
+        return $"{Formatacao.Moeda(d.Valor)} (mês anterior: {Formatacao.Moeda(d.ValorMesAnterior)})";
+    }
+
+    private static string TextoDiferenca(decimal diferenca)
+        => diferenca == 0 ? "=" : $"{(diferenca > 0 ? "+" : "-")}{Formatacao.Moeda(Math.Abs(diferenca))}";
 
     private static string ClasseTendencia(TendenciaGasto tendencia) => tendencia switch
     {
